@@ -109,6 +109,8 @@ HubList    = []
 ConnList   = []
 FuelTypeList = []
 DemandTypeList = []
+outcols = ['Total Cost']
+
 
 #Import restrictions, just CO2 for now
 CO2Max = RestrIn.loc[0,'CO2 Max']
@@ -117,6 +119,7 @@ CO2Max = RestrIn.loc[0,'CO2 Max']
 for i in range(len(SourceIn.index)):
     if not SourceIn.loc[i,'EnergyType'] in FuelTypeList:
         FuelTypeList.append(SourceIn.loc[i,'EnergyType'])
+        outcols.append(SourceIn.loc[i,'EnergyType'])
         
 #Energy types demanded at sinks     
 for i in range(len(SinkIn.index)):
@@ -166,6 +169,8 @@ for i in range(len(TransIn.index)):
                                  opex = TransIn.loc[i,'Opex'],
                                  totalEff = TransIn.loc[i,'TotalEff']))
     
+    outcols.append(TransList[i].name + 'Production')
+    
     k = 0
     x = 0
     
@@ -202,6 +207,8 @@ for i in range(len(HubIn.index)):
                        energyType = HubIn.loc[i,'EnergyType'],
                        capex = HubIn.loc[i,'Capex'],
                        opex = HubIn.loc[i,'Opex']))
+    
+    outcols.append(HubList[i].name + 'Usage')
     for con in ConnList:
         if con.out==HubList[i].name and con.energyType==HubList[i].energyType:
             HubList[i].incons.append(con)
@@ -339,19 +346,16 @@ results = opti(model)
 
 #Output formatting starts here
 
-outMJ = [0] * len(FuelTypeList)
+    
+outdf = pd.DataFrame(np.zeros((1,len(outcols))), columns = outcols)
+outdf.at[0, 'Total Cost'] = model.Obj()
+for fac in model.stations:
+    if isinstance(fac, Source):
+        outdf.at[0, fac.energyType] = model.facilities[fac].value
+    elif isinstance(fac, Transformer):
+        outdf.at[0, fac.name + 'Production'] = model.facilities[fac].value
+    else:
+        outdf.at[0, fac.name + 'Usage'] = model.facilities[fac].value
 
-for i in range(len(ConnList)):
-    for j in range(len(FuelTypeList)):
-        if ConnList[i].energyType == FuelTypeList[j]:
-            outMJ[j] = outMJ[j] + model.connections[ConnList[i]].value
-
-
-outdf = pd.DataFrame({'Fuel Type' : FuelTypeList,
-                      'MJ by Fuel' : outMJ,
-                      'Total System Cost' : model.Obj()})
-
-for i in range(1,len(outdf.index)):
-    outdf.at[i,'Total System Cost'] = np.nan
 
 outdf.to_excel('output.xlsx', sheet_name='Sheet1')
