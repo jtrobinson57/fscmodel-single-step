@@ -172,7 +172,6 @@ for i in range(len(TransIn.index)):
     outcols.append(TransList[i].name + 'Production')
     
     k = 0
-    x = 0
     
     for j in range(len(TransIn.loc[i,'Input0':'Prod0'])-1):
         x = int(j/2)
@@ -184,9 +183,9 @@ for i in range(len(TransIn.index)):
         k = k + 1
         
     k = 0
-    x = 0
     
     for j in range(len(TransIn.loc[i,'Prod0':])):
+        x = int(j/2)
         product = TransIn.loc[i,'Prod'+str(x)]       
         if k % 2 == 0 and isinstance(product,str):
             if not product in EnergyList:
@@ -200,6 +199,7 @@ for i in range(len(TransIn.index)):
             TransList[i].incons.append(con)
         elif con.inp==TransList[i].name and con.energyType in TransList[i].products:
             TransList[i].outcons.append(con)
+            outcols.append(TransList[i].name + '-' + con.energyType)
 
  #Initialize the Hubs   
 for i in range(len(HubIn.index)):
@@ -354,8 +354,11 @@ for fac in model.stations:
         outdf.at[0, fac.energyType] = model.facilities[fac].value
     elif isinstance(fac, Transformer):
         outdf.at[0, fac.name + 'Production'] = model.facilities[fac].value
+        for con in fac.outcons:
+            outdf.at[0, fac.name + '-' + con.energyType] = model.connections[con].value
     else:
         outdf.at[0, fac.name + 'Usage'] = model.facilities[fac].value
+        
 
 
 outdf.to_excel('output.xlsx', sheet_name='Sheet1')
