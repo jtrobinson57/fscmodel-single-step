@@ -278,6 +278,10 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
                 etype = con.energyType
                 return tra.products[etype] * M.facilities[tra] == M.connections[con]
         return Constraint.Skip
+    
+    for tran in M.trans:
+        M.facilities[tran].setub(tran.outMax)
+        M.facilities[tran].setlb(tran.outMin)
 
     M.transconstraint = Constraint(M.trans, rule = transrule)
     M.transsum = Constraint(M.trans, rule = transcount)
