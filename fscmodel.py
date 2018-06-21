@@ -47,7 +47,7 @@ class Sink:
             return self.name < other.name
     
 class Transformer:
-    def __init__(self,name,capex,opex,totalEff,outMin,outMax):
+    def __init__(self, name, capex, opex, totalEff, outMin, outMax):
         self.name = name
         self.capex = capex
         self.opex = opex
@@ -67,7 +67,7 @@ class Transformer:
             return self.name < other.name
         
 class Hub:
-    def __init__(self,name,energyType,capex,opex):
+    def __init__(self,name,energyType,capex=0,opex=0):
         self.name = name
         self.energyType = energyType
         self.capex = capex
@@ -94,6 +94,7 @@ class Connection:
             return self.name < other.name
     def __str__(self):
         return "Connection:" + self.name + ", " + self.energyType
+
 
 def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
     M = ConcreteModel()
@@ -205,7 +206,8 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
 
 def opti(model):
     opt = SolverFactory('gurobi')
-    results = opt.solve(model)
+    results = opt.solve(model, tee = True)
+    print(model.display())
     return results
 
 
@@ -217,9 +219,6 @@ def checkModel(ConnList, entypes):
         
     #What more can be added?
     return None
-
-#int main
-
 
 SourceIn    = pd.read_excel('input.xlsx', 'Sources', index_col=None, na_values=['NA'])
 SinkIn      = pd.read_excel('input.xlsx', 'Sinks', index_col=None, na_values=['NA'])
@@ -235,7 +234,8 @@ HubList    = []
 ConnList   = []
 FuelTypeList = []
 DemandTypeList = []
-outcolumns = ['Total Cost']
+outcols = ['Total Cost']
+
 
 #Import restrictions, just CO2 for now
 CO2Max = RestrIn.loc[0,'CO2 Max']
@@ -244,7 +244,7 @@ CO2Max = RestrIn.loc[0,'CO2 Max']
 for i in range(len(SourceIn.index)):
     if not SourceIn.loc[i,'EnergyType'] in FuelTypeList:
         FuelTypeList.append(SourceIn.loc[i,'EnergyType'])
-        outcolumns.append(SourceIn.loc[i,'EnergyType'])
+        outcols.append(SourceIn.loc[i,'EnergyType'])
         
 #Energy types demanded at sinks     
 for i in range(len(SinkIn.index)):
@@ -253,8 +253,6 @@ for i in range(len(SinkIn.index)):
 
 #All energy types 
 EnergyList = FuelTypeList + DemandTypeList
-
-
 
 #Initialize the connectors        
 for i in range(len(ConnIn.index)):
@@ -267,13 +265,11 @@ for i in range(len(ConnIn.index)):
 for i in range(len(SourceIn.index)):
     SourceList.append(Source(name = SourceIn.loc[i,'Name'],
                              energyType = SourceIn.loc[i,'EnergyType'],
-                             capex = SourceIn.loc[i,'Capex'], 
-                             opex = SourceIn.loc[i,'Opex'],
+                             capex=SourceIn.loc[i,'Capex'], 
+                             opex = SourceIn.loc[i,'Opex'], 
                              CO2 = SourceIn.loc[i,'CO2'],
                              minProd = SourceIn.loc[i,'MinProduction'],
                              maxProd = SourceIn.loc[i, 'MaxProduction']))
-    
-    outcolumns.append(SourceList[i].name + 'opex')
     
     for con in ConnList:
         if con.inp==SourceList[i].name and con.energyType==SourceList[i].energyType:
@@ -287,9 +283,6 @@ for i in range(len(SinkIn.index)):
                          opex = SinkIn.loc[i,'Opex'],
                          demand = SinkIn.loc[i,'Demand']))
     
-    outcolumns.append(SinkList[i].name + 'opex')
-    outcolumns.append(SinkList[i].name + 'Demand')
-    
     for con in ConnList:
         if con.out==SinkList[i].name and con.energyType==SinkList[i].energyType:
             SinkList[i].incons.append(con)
@@ -300,13 +293,12 @@ for i in range(len(TransIn.index)):
                                  capex = TransIn.loc[i,'Capex'],
                                  opex = TransIn.loc[i,'Opex'],
                                  totalEff = TransIn.loc[i,'TotalEff'],
-                                 outMin = TransIn.loc[i, 'OutMin',],
+                                 outMin = TransIn.loc[i, 'OutMin'],
                                  outMax = TransIn.loc[i, 'OutMax']))
-    outcolumns.append(TransList[i].name + 'opex')
-    outcolumns.append(TransList[i].name + 'TotalEff')
+    
+    outcols.append(TransList[i].name + 'Production')
     
     k = 0
-    x = 0
     
     for j in range(len(TransIn.loc[i,'Input0':'Prod0'])-1):
         x = int(j/2)
@@ -318,9 +310,9 @@ for i in range(len(TransIn.index)):
         k = k + 1
         
     k = 0
-    x = 0
     
     for j in range(len(TransIn.loc[i,'Prod0':])):
+        x = int(j/2)
         product = TransIn.loc[i,'Prod'+str(x)]       
         if k % 2 == 0 and isinstance(product,str):
             if not product in EnergyList:
@@ -328,21 +320,22 @@ for i in range(len(TransIn.index)):
             TransList[i].products[product] = TransIn.loc[i,'SubEff'+str(x)]
             x = x + 1
         k = k + 1
-
+ 
     for con in ConnList:
         if con.out==TransList[i].name and con.energyType in TransList[i].inputs:
             TransList[i].incons.append(con)
         elif con.inp==TransList[i].name and con.energyType in TransList[i].products:
             TransList[i].outcons.append(con)
+            outcols.append(TransList[i].name + '-' + con.energyType)
 
-#Initialize the Hubs   
+ #Initialize the Hubs   
 for i in range(len(HubIn.index)):
     HubList.append(Hub(name = HubIn.loc[i,'Name'],
                        energyType = HubIn.loc[i,'EnergyType'],
                        capex = HubIn.loc[i,'Capex'],
                        opex = HubIn.loc[i,'Opex']))
-    outcolumns.append(HubList[i].name + 'opex')
     
+    outcols.append(HubList[i].name + 'Usage')
     for con in ConnList:
         if con.out==HubList[i].name and con.energyType==HubList[i].energyType:
             HubList[i].incons.append(con)
@@ -350,27 +343,29 @@ for i in range(len(HubIn.index)):
             HubList[i].outcons.append(con)
     
 
-#objList = np.zeros(numIter)
-#fuelQuantity = (len(FuelTypeList),numIter)
-#np.zeros(fuelQuantity)
 
 checkModel(ConnList, EnergyList)
 
-dataout = pd.DataFrame(np.zeros((0,len(outcolumns))),columns = outcolumns)
-
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2 = CO2Max)
-    
+
 results = opti(model)
-    
-    #Output formatting starts here
-
-dataout.at[i,'Total Cost'] = model.Obj()
-    
-    
-for source in SourceList:
-    dataout.at[i,source.energyType] = model.facilities[source].value
-    
-dataout.to_excel('output.xlsx', sheet_name='Sheet1')
 
 
-#return 0
+#Output formatting starts here
+
+    
+outdf = pd.DataFrame(np.zeros((1,len(outcols))), columns = outcols)
+outdf.at[0, 'Total Cost'] = model.Obj()
+for fac in model.stations:
+    if isinstance(fac, Source):
+        outdf.at[0, fac.energyType] = model.facilities[fac].value
+    elif isinstance(fac, Transformer):
+        outdf.at[0, fac.name + 'Production'] = model.facilities[fac].value
+        for con in fac.outcons:
+            outdf.at[0, fac.name + '-' + con.energyType] = model.connections[con].value
+    else:
+        outdf.at[0, fac.name + 'Usage'] = model.facilities[fac].value
+        
+
+
+outdf.to_excel('output.xlsx', sheet_name='Sheet1')
