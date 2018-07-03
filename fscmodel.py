@@ -10,6 +10,7 @@ from pyomo.opt import SolverFactory
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 class Source:
     def __init__(self,name,energyType,capex,opex,CO2,minProd,maxProd):
@@ -95,7 +96,41 @@ class Connection:
     def __str__(self):
         return "Connection:" + self.name + ", " + self.energyType
 
-
+class CO2Loc:
+    def __init__(self,name,postal,dist,cap):
+        self.name = name
+        self.postal = postal
+        self.dist = dist / 100.0
+        self.cap = cap
+        self.capex = 0
+        self.indOpex = 0
+        self.dirOpex = 0
+        self.K = 0
+        self.Ktotal = 0
+        
+    def findCapex(self):
+        self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap))    #returns euro/KW
+        
+    def findDirOpex(self):
+        self.dirOpex = 5.190866 + (3.999796 - 5.190866)/(1 + (self.dist/2.020612)**1.534203) #returns euros/kg of H2
+    
+    def findIndOpex(self):
+        
+        #I only made this so verbose to make the unit conversions a bit more clear
+        
+        MW = self.cap
+        MJpa = MW * 3600 * 8000  #Converted to MJ/a
+        MJph = MJpa / 8000       #Converted to MJ/h
+        KGph = MJph / 43.1       #Converted to KG/h
+        
+        self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32   #returns euros per MW of plant capacity
+    
+    def __lt__(self,other):
+        if isinstance(other, Connection):
+            return self.name < other.name
+    def __str__(self):
+        return "CO2 Location:" + self.name + ", CO2 and Hydrogen"
+    
 def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
     M = ConcreteModel()
     
@@ -225,6 +260,7 @@ SinkIn      = pd.read_excel('input.xlsx', 'Sinks', index_col=None, na_values=['N
 TransIn     = pd.read_excel('input.xlsx', 'Transformers', index_col=None, na_values=['NA'])
 HubIn      = pd.read_excel('input.xlsx', 'Hubs', index_col=None, na_values=['NA'])
 ConnIn      = pd.read_excel('input.xlsx', 'Connectors', index_col=None, na_values=['NA'])
+CO2LocIn  = pd.read_excel('input.xlsx', 'CO2Locations', index_col=None, na_values=['NA'])
 RestrIn      = pd.read_excel('input.xlsx', 'Restrictions', index_col=None, na_values=['NA'])
 
 SourceList = []
@@ -232,6 +268,7 @@ SinkList   = []
 TransList  = []
 HubList    = []
 ConnList   = []
+CO2LocList = []
 FuelTypeList = []
 DemandTypeList = []
 outcols = ['Total Cost']
@@ -239,6 +276,8 @@ outcols = ['Total Cost']
 
 #Import restrictions, just CO2 for now
 CO2Max = RestrIn.loc[0,'CO2 Max']
+wacc = RestrIn.loc[0, 'WACC']
+lifetime = RestrIn.loc[0, 'Lifetime']
 
 #Energy sources available from sources
 for i in range(len(SourceIn.index)):
@@ -257,8 +296,8 @@ EnergyList = FuelTypeList + DemandTypeList
 #Initialize the connectors        
 for i in range(len(ConnIn.index)):
     ConnList.append(Connection(name = ConnIn.loc[i,'Name'],
-                              inp = ConnIn.loc[i,'In'],
-                              out = ConnIn.loc[i,'Out'],
+                              inp = ConnIn.loc[i,'From'],
+                              out = ConnIn.loc[i,'To'],
                               energyType = ConnIn.loc[i,'EnergyType']))
 
 #Initialize the Sources
@@ -342,7 +381,21 @@ for i in range(len(HubIn.index)):
         elif con.inp==HubList[i].name and con.energyType==HubList[i].energyType:
             HubList[i].outcons.append(con)
     
-
+#Initialize the CO2 Locations
+for i in range(len(CO2LocIn.index)):
+    CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],
+                             postal = CO2LocIn.loc[i, 'PostalCode'],
+                             dist = CO2LocIn.loc[i, 'Spalte2'],
+                             cap = CO2LocIn.loc[i, 'Plant size [MW]']))
+    
+#Calculate CO2 location properties
+for CO2Loc in CO2LocList:
+    
+    CO2Loc.findCapex()
+    CO2Loc.findDirOpex()
+    CO2Loc.findIndOpex()
+    
+    CO2Loc.K = CO2Loc.capex * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
 
 checkModel(ConnList, EnergyList)
 
