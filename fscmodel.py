@@ -125,6 +125,12 @@ class CO2Loc:
         
         self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4  #returns euros per MW of plant capacity
     
+    def checkMinMax(self):     #Checks to make sure plant capacity is within given bounds
+                               #according to the input restrictions sheet       
+        if self.cap > minCO2PlantSize:     #Admittedly, this function only checks maxes, mins are checked below
+            self.cap = minCO2PlantSize     #at the point of read-in
+
+    
     def __lt__(self,other):
         if isinstance(other, Connection):
             return self.name < other.name
@@ -243,11 +249,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
 
 def opti(model):
     
-    
     opt = SolverFactory('gurobi', tee = True)
-    #opt.set_instance(model)
-    #c3 = SOSConstraint(var = model.isopen, index = [TransList[0],TransList[1]], sos = 1)
-    #opt.SOS_set_constraint = c3
 
     results = opt.solve(model, tee = True)
     print(model.display())
@@ -286,6 +288,8 @@ outcols = ['Total Cost']
 CO2Max = RestrIn.loc[0,'CO2 Max']
 wacc = RestrIn.loc[0, 'WACC']
 lifetime = RestrIn.loc[0, 'Lifetime']
+minCO2PlantSize = RestrIn.loc[0, 'MinCO2PlantSize']
+maxCO2PlantSize = RestrIn.loc[0, 'MaxCO2PlantSize']
 
 #Energy sources available from sources
 for i in range(len(SourceIn.index)):
@@ -375,7 +379,7 @@ for i in range(len(TransIn.index)):
             TransList[i].outcons.append(con)
             outcols.append(TransList[i].name + '-' + con.energyType)
 
- #Initialize the Hubs   
+#Initialize the Hubs   
 for i in range(len(HubIn.index)):
     HubList.append(Hub(name = HubIn.loc[i,'Name'],
                        energyType = HubIn.loc[i,'EnergyType'],
@@ -390,11 +394,12 @@ for i in range(len(HubIn.index)):
             HubList[i].outcons.append(con)
     
 #Initialize the CO2 Locations
-for i in range(len(CO2LocIn.index)):
-    CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],
-                             postal = CO2LocIn.loc[i, 'PostalCode'],
-                             dist = CO2LocIn.loc[i, 'Spalte2'],
-                             cap = CO2LocIn.loc[i, 'Plant size [MW]']))
+for i in range(len(CO2LocIn.index)):                #Checks to make sure plant capacity is within given bounds
+    if(CO2LocIn.loc[i,'Plant size [MW]'] >= maxCO2PlantSize):    #according to the input restrictions sheet
+        CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],  #This if statement only checks mins, maxes
+                                 postal = CO2LocIn.loc[i, 'PostalCode'],  #Are checked below, during the calculation
+                                 dist = CO2LocIn.loc[i, 'Spalte2'],       #of CO2 location properties by checkMinMax()
+                                 cap = CO2LocIn.loc[i, 'Plant size [MW]']))
     
 #Calculate CO2 location properties
 for CO2Loc in CO2LocList:
@@ -402,6 +407,7 @@ for CO2Loc in CO2LocList:
     CO2Loc.findCapex()
     CO2Loc.findDirOpex()
     CO2Loc.findIndOpex()
+    CO2Loc.checkMinMax()
     
     CO2Loc.K = CO2Loc.capex * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
 
