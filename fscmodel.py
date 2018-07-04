@@ -97,9 +97,9 @@ class Connection:
         return "Connection:" + self.name + ", " + self.energyType
 
 class CO2Loc:
-    def __init__(self,name,index,postal,dist,cap):
+    def __init__(self,name,ind,postal,dist,cap):
         self.name = name
-        self.index = index
+        self.ind = ind
         self.postal = postal
         self.dist = dist / 100.0
         self.cap = cap
@@ -136,9 +136,9 @@ class CO2Loc:
         if isinstance(other, Connection):
             return self.name < other.name
     def __str__(self):
-        return "CO2 Location:" + self.name + ", CO2 and Hydrogen"
+        return "CO2 Location:" + self.name
     
-def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
+def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2):
     M = ConcreteModel()
     
     M.connectors = Set(initialize = ConnList)
@@ -147,6 +147,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
     M.trans = Set(initialize = TransList)
     M.hubs = Set(initialize = HubList)
     M.stations = Set(initialize = SourceList + SinkList + TransList + HubList)
+    M.locations = Set(initialize = CO2LocList)
     
     M.c = Param(M.stations, mutable = True)
     M.carbon = Param(M.sources, mutable = True)
@@ -156,6 +157,10 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
     M.facilities = Var( M.stations, domain = NonNegativeReals)
     #Whether a facility is being used. For calculating Capex
     M.isopen = Var(M.stations, domain = Boolean)
+    #Whether the CO2 locations are open
+    M.locopen = Var(M.locations, domain = Boolean)
+    #Assignment of C02locs to H2 transformers
+    M.assignments = Var(range(locationNum*len(H2TransList)), domain = Boolean)
     #Amount going through connectors
     M.connections = Var(M.connectors, domain = NonNegativeReals)
     #Amount coming into a transformer. Used to consider transformer production ratio
@@ -252,9 +257,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
     return M
 
 def opti(model):
-    
     opt = SolverFactory('gurobi', tee = True)
-
     results = opt.solve(model, tee = True)
     print(model.display())
     return results
@@ -403,14 +406,15 @@ for i in range(len(HubIn.index)):
 #Initialize the CO2 Locations
 j = 0
 for i in range(len(CO2LocIn.index)):                          #Checks to make sure plant capacity is within given bounds
-    if(CO2LocIn.loc[i,'Plant size [MW]'] >= minCO2PlantSize): #according to the input restrictions sheet
-        j = j + 1                                                               
+    if(CO2LocIn.loc[i,'Plant size [MW]'] >= minCO2PlantSize): #according to the input restrictions sheet                                                             
         CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],
-                                 index = j,                               #This if statement only checks mins, maxes
+                                 ind = j,                               #This if statement only checks mins, maxes
                                  postal = CO2LocIn.loc[i, 'PostalCode'],  #Are checked below, during the calculation
                                  dist = CO2LocIn.loc[i, 'Spalte2'],       #of CO2 location properties by checkMinMax()
                                  cap = CO2LocIn.loc[i, 'Plant size [MW]']))
-    
+        j = j + 1  
+   
+locationNum = j
 #Calculate CO2 location properties
 for CO2Loc in CO2LocList:
     
@@ -423,7 +427,7 @@ for CO2Loc in CO2LocList:
 
 checkModel(ConnList, EnergyList)
 
-model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2 = CO2Max)
+model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
 results = opti(model)
 
