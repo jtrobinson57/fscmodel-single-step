@@ -235,15 +235,19 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)
        return ob
             
+    M.SOS_set_constraint = SOSConstraint(var = M.isopen, index = [TransList[0],TransList[1],TransList[2]], sos = 1)
+    
     M.Obj = Objective(rule = objrule, sense = minimize)
             
     return M
 
 def opti(model):
+    
+    
     opt = SolverFactory('gurobi_persistent', tee = True)
     opt.set_instance(model)
-    c3 = SOSConstraint(level = 1, var = model.isopen, index = [TransList[0],TransList[1]])
-    opt.add_sos_constraint(c3)
+    #c3 = SOSConstraint(var = model.isopen, index = [TransList[0],TransList[1]], sos = 1)
+    #opt.SOS_set_constraint = c3
 
     results = opt.solve(model, tee = True)
     print(model.display())
