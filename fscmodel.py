@@ -97,8 +97,9 @@ class Connection:
         return "Connection:" + self.name + ", " + self.energyType
 
 class CO2Loc:
-    def __init__(self,name,postal,dist,cap):
+    def __init__(self,name,index,postal,dist,cap):
         self.name = name
+        self.index = index
         self.postal = postal
         self.dist = dist / 100.0
         self.cap = cap
@@ -127,8 +128,8 @@ class CO2Loc:
     
     def checkMinMax(self):     #Checks to make sure plant capacity is within given bounds
                                #according to the input restrictions sheet       
-        if self.cap > minCO2PlantSize:     #Admittedly, this function only checks maxes, mins are checked below
-            self.cap = minCO2PlantSize     #at the point of read-in
+        if self.cap > maxCO2PlantSize:     #Admittedly, this function only checks maxes, mins are checked below
+            self.cap = maxCO2PlantSize     #at the point of read-in
 
     
     def __lt__(self,other):
@@ -397,9 +398,12 @@ for i in range(len(HubIn.index)):
             HubList[i].outcons.append(con)
     
 #Initialize the CO2 Locations
-for i in range(len(CO2LocIn.index)):                #Checks to make sure plant capacity is within given bounds
-    if(CO2LocIn.loc[i,'Plant size [MW]'] >= minCO2PlantSize):    #according to the input restrictions sheet
-        CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],  #This if statement only checks mins, maxes
+j = 0
+for i in range(len(CO2LocIn.index)):                          #Checks to make sure plant capacity is within given bounds
+    if(CO2LocIn.loc[i,'Plant size [MW]'] >= minCO2PlantSize): #according to the input restrictions sheet
+        j = j + 1                                                               
+        CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],
+                                 index = j,                               #This if statement only checks mins, maxes
                                  postal = CO2LocIn.loc[i, 'PostalCode'],  #Are checked below, during the calculation
                                  dist = CO2LocIn.loc[i, 'Spalte2'],       #of CO2 location properties by checkMinMax()
                                  cap = CO2LocIn.loc[i, 'Plant size [MW]']))
