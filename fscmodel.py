@@ -112,6 +112,7 @@ class CO2Loc:
     def findCapex(self):
         
         self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap))    #returns euro/KW
+        self.capex = self.capex * 1000 * self.cap                        #returns euros
         
     def findDirOpex(self):
         
@@ -133,7 +134,10 @@ class CO2Loc:
                                #according to the input restrictions sheet       
         if self.cap > maxCO2PlantSize:     #Admittedly, this function only checks maxes, mins are checked below
             self.cap = maxCO2PlantSize     #at the point of read-in
-
+    
+    def changeCapUnitMJ(self):
+        
+        self.cap = self.cap * 3600 * 8000  #Switch from MW to MJ/yr for a single year
     
     def __lt__(self,other):
         if isinstance(other, Connection):
@@ -408,6 +412,7 @@ for i in range(len(HubIn.index)):
     
 #Initialize the CO2 Locations
 j = 0
+
 for i in range(len(CO2LocIn.index)):                          #Checks to make sure plant capacity is within given bounds
     if(CO2LocIn.loc[i,'Plant size [MW]'] >= minCO2PlantSize): #according to the input restrictions sheet                                                             
         CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],
@@ -418,13 +423,16 @@ for i in range(len(CO2LocIn.index)):                          #Checks to make su
         j = j + 1  
    
 locationNum = j
+
 #Calculate CO2 location properties
+
 for CO2Loc in CO2LocList:
     
+    CO2Loc.checkMinMax()
     CO2Loc.findCapex()
     CO2Loc.findDirOpex()
     CO2Loc.findIndOpex()
-    CO2Loc.checkMinMax()
+    CO2Loc.changeCapUnitMJ()
     
     CO2Loc.K = CO2Loc.capex * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
 
