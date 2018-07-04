@@ -166,6 +166,8 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.isopen = Var(M.stations, domain = Boolean)
     #Whether the CO2 locations are open
     M.locopen = Var(M.locations, domain = Boolean)
+    #Amount of hydrogen in MJ going into C02 locs.
+    M.hydrouse = Var(M.locations, domain = NonNegativeReals)
     #Assignment of C02locs to H2 transformers
     M.assignments = Var(range(locationNum*len(H2TransList)), domain = Boolean)
     #Amount going through connectors
@@ -242,6 +244,14 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.hubconstraint = Constraint(M.hubs, rule = hubrule)
     M.hubsum = Constraint(M.hubs, rule = hubcount)
     
+    #Dealing with CO2 locations here
+    def binruleloc(model, loc):
+        return M.hydrouse[loc] - M.locopen[loc]*M.hydrouse[loc] <= 0
+    
+    M.checklocopen = Constraint(M.locations, rule = binruleloc)
+    
+    M.SOS_set_constraint = SOSConstraint(var = M.isopen, index = [TransList[0],TransList[1],TransList[2]], sos = 1)
+    
     #Quadratic constraint that turns isopen on and off
     def binrule(model, fac):
         return M.facilities[fac] - M.isopen[fac]*M.facilities[fac] <= 0
@@ -249,15 +259,13 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.checkopen = Constraint(M.stations, rule = binrule)
 
 
- 
     M.carbonset = Constraint(expr = summation(M.facilities, M.carbon, index = M.sources) == M.carbonsum)
     M.Co2limit = Constraint(expr = M.carbonsum <= CO2)    
         
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)
        return ob
-            
-    M.SOS_set_constraint = SOSConstraint(var = M.isopen, index = [TransList[0],TransList[1],TransList[2]], sos = 1)
+
     
     M.Obj = Objective(rule = objrule, sense = minimize)
             
@@ -266,7 +274,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
 def opti(model):
     opt = SolverFactory('gurobi', tee = True)
     results = opt.solve(model, tee = True)
-    print(model.display())
+#    print(model.display())
     return results
 
 
