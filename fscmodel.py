@@ -123,7 +123,7 @@ class CO2Loc:
         MJph = MJpa / 8000       #Converted to MJ/h
         KGph = MJph / 43.1       #Converted to KG/h
         
-        self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32   #returns euros per MW of plant capacity
+        self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4  #returns euros per MW of plant capacity
     
     def __lt__(self,other):
         if isinstance(other, Connection):
@@ -409,6 +409,7 @@ results = opti(model)
     
 outdf = pd.DataFrame(np.zeros((1,len(outcols))), columns = outcols)
 outdf.at[0, 'Total Cost'] = model.Obj()
+
 for fac in model.stations:
     if isinstance(fac, Source):
         outdf.at[0, fac.energyType] = model.facilities[fac].value
