@@ -159,6 +159,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
     M.connections = Var(M.connectors, domain = NonNegativeReals)
     #Amount coming into a transformer. Used to consider transformer production ratio
     M.trintotals = Var(M.trans, domain = NonNegativeReals)
+    M.carbonsum = Var(domain = NonNegativeReals)
     
     #Populates capex costs
     for fac in M.stations:
@@ -235,7 +236,9 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
     M.checkopen = Constraint(M.stations, rule = binrule)
 
 
-    M.Co2limit = Constraint(expr = summation(M.facilities,M.carbon,index = M.sources) <= CO2)    
+ 
+    M.carbonset = Constraint(expr = summation(M.facilities, M.carbon, index = M.sources) == M.carbonsum)
+    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)    
         
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)
@@ -281,10 +284,10 @@ ConnList   = []
 CO2LocList = []
 FuelTypeList = []
 DemandTypeList = []
-outcols = ['Total Cost']
+outcols = ['Total Cost', 'CO2']
 
 
-#Import restrictions, just CO2 for now
+#Import restrictions
 CO2Max = RestrIn.loc[0,'CO2 Max']
 wacc = RestrIn.loc[0, 'WACC']
 lifetime = RestrIn.loc[0, 'Lifetime']
@@ -395,7 +398,7 @@ for i in range(len(HubIn.index)):
     
 #Initialize the CO2 Locations
 for i in range(len(CO2LocIn.index)):                #Checks to make sure plant capacity is within given bounds
-    if(CO2LocIn.loc[i,'Plant size [MW]'] >= maxCO2PlantSize):    #according to the input restrictions sheet
+    if(CO2LocIn.loc[i,'Plant size [MW]'] >= minCO2PlantSize):    #according to the input restrictions sheet
         CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],  #This if statement only checks mins, maxes
                                  postal = CO2LocIn.loc[i, 'PostalCode'],  #Are checked below, during the calculation
                                  dist = CO2LocIn.loc[i, 'Spalte2'],       #of CO2 location properties by checkMinMax()
@@ -423,6 +426,7 @@ results = opti(model)
     
 outdf = pd.DataFrame(np.zeros((1,len(outcols))), columns = outcols)
 outdf.at[0, 'Total Cost'] = model.Obj()
+outdf.at[0, 'CO2'] = model.carbonsum.value
 
 for fac in model.stations:
     if isinstance(fac, Source):
