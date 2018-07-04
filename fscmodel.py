@@ -277,13 +277,14 @@ ConnIn      = pd.read_excel('input.xlsx', 'Connectors', index_col=None, na_value
 CO2LocIn  = pd.read_excel('input.xlsx', 'CO2Locations', index_col=None, na_values=['NA'])
 RestrIn      = pd.read_excel('input.xlsx', 'Restrictions', index_col=None, na_values=['NA'])
 
-SourceList = []
-SinkList   = []
-TransList  = []
-HubList    = []
-ConnList   = []
-CO2LocList = []
-FuelTypeList = []
+SourceList     = []
+SinkList       = []
+TransList      = []
+H2TransList    = []
+HubList        = []
+ConnList       = []
+CO2LocList     = []
+FuelTypeList   = []
 DemandTypeList = []
 outcols = ['Total Cost', 'CO2']
 
@@ -352,6 +353,8 @@ for i in range(len(TransIn.index)):
                                  outMax = TransIn.loc[i, 'OutMax']))
     
     outcols.append(TransList[i].name + 'Production')
+    if TransIn.loc[i,'Input0'] == 'hydrogen':
+        H2TransList.append(TransList[i])
     
     k = 0
     
