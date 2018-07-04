@@ -123,7 +123,7 @@ class CO2Loc:
         MJph = MJpa / 8000       #Converted to MJ/h
         KGph = MJph / 43.1       #Converted to KG/h
         
-        self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32   #returns euros per MW of plant capacity
+        self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4  #returns euros per MW of plant capacity
     
     def __lt__(self,other):
         if isinstance(other, Connection):
@@ -235,15 +235,19 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)
        return ob
             
+    M.SOS_set_constraint = SOSConstraint(var = M.isopen, index = [TransList[0],TransList[1],TransList[2]], sos = 1)
+    
     M.Obj = Objective(rule = objrule, sense = minimize)
             
     return M
 
 def opti(model):
+    
+    
     opt = SolverFactory('gurobi_persistent', tee = True)
     opt.set_instance(model)
-    c3 = SOSConstraint(level = 1, var = model.isopen, index = [TransList[0],TransList[1]])
-    opt.add_sos_constraint(c3)
+    #c3 = SOSConstraint(var = model.isopen, index = [TransList[0],TransList[1]], sos = 1)
+    #opt.SOS_set_constraint = c3
 
     results = opt.solve(model, tee = True)
     print(model.display())
@@ -413,6 +417,7 @@ results = opti(model)
     
 outdf = pd.DataFrame(np.zeros((1,len(outcols))), columns = outcols)
 outdf.at[0, 'Total Cost'] = model.Obj()
+
 for fac in model.stations:
     if isinstance(fac, Source):
         outdf.at[0, fac.energyType] = model.facilities[fac].value
