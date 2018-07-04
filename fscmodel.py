@@ -244,8 +244,8 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
 def opti(model):
     
     
-    opt = SolverFactory('gurobi_persistent', tee = True)
-    opt.set_instance(model)
+    opt = SolverFactory('gurobi', tee = True)
+    #opt.set_instance(model)
     #c3 = SOSConstraint(var = model.isopen, index = [TransList[0],TransList[1]], sos = 1)
     #opt.SOS_set_constraint = c3
 
