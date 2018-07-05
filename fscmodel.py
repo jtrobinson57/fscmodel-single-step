@@ -170,11 +170,12 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
             iii.append(locationNum*j + loc.ind)
         letsinit[loc] = iii
     M.letsgo = Set(M.locations, initialize = letsinit)
-    print(M.letsgo[CO2LocList[6]].value)
+#    print(M.letsgo[CO2LocList[1]].value)
     
     M.c = Param(M.stations, mutable = True)
     M.carbon = Param(M.sources, mutable = True)
     M.cape = Param(M.stations, mutable = True)
+    M.loccap = Param(M.locations, mutable = True)
     
     #For the amount in facilities, for calculating Opex. For transformer, the amount coming out
     M.facilities = Var( M.stations, domain = NonNegativeReals)
@@ -196,6 +197,8 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     #Populates capex costs
     for fac in M.stations:
         M.cape[fac]=fac.capex
+    for loc in M.locations:
+        M.loccap[loc] = loc.K
     
     #Constructs cost vector from opex and carbon constraints from sources.
     for fac in M.stations:
@@ -276,10 +279,9 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         return model.hydrouse[loc] - model.locopen[loc]*model.hydrouse[loc] <= 0
     
     M.checklocopen = Constraint(M.locations, rule = binruleloc)
-    
-#    for i in range(locationNum):
-#        M.SOS_set_constraint = SOSConstraint(var = M.assignments, index = [i,locationNum+i], sos = 1)
+
     M.sososo = SOSConstraint(M.locations, var = M.assignments, index = M.letsgo, sos = 1 )
+    
     #Quadratic constraint that turns isopen on and off
     def binrule(model, fac):
         return M.facilities[fac] - M.isopen[fac]*M.facilities[fac] <= 0
@@ -290,7 +292,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
 #    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)    
         
     def objrule(model):
-       ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)
+       ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations) + summation(model.locopen, model.loccap, index = model.locations)
        return ob
 
     
@@ -481,9 +483,12 @@ model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocLi
 
 results = opti(model)
 for loc in CO2LocList:
-    print(model.hydrouse[loc].value)
-    print(model.assignments[loc.ind].value)
-    print(model.assignments[locationNum + loc.ind].value)
+    if model.locopen[loc].value > 0:
+        print(loc.ind)
+        print(model.hydrouse[loc].value)
+        print(model.assignments[loc.ind].value)
+        print(model.assignments[locationNum + loc.ind].value)
+        print(model.locopen[loc].value)
 
 #Output formatting starts here
 
