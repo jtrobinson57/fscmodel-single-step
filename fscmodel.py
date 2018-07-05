@@ -271,7 +271,6 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     M.checkopen = Constraint(M.stations, rule = binrule)
 
-
     M.carbonset = Constraint(expr = summation(M.facilities, M.carbon, index = M.sources) == M.carbonsum)
 #    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)    
         
@@ -287,7 +286,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
 def opti(model):
     opt = SolverFactory('gurobi', tee = True)
     results = opt.solve(model, tee = True)
-    print(model.display())
+    #print(model.display())
     return results
 
 
