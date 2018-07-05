@@ -59,6 +59,7 @@ class Transformer:
         self.products = {}
         self.incons = []
         self.outcons = []
+        self.hynum = None
     
     def __str__(self):
         return "Transformer:" + self.name
@@ -152,6 +153,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.sources = Set(initialize = SourceList)
     M.sinks = Set(initialize = SinkList)
     M.trans = Set(initialize = TransList)
+    M.hytrans = Set(initialize = H2TransList)
     M.hubs = Set(initialize = HubList)
     M.stations = Set(initialize = SourceList + SinkList + TransList + HubList)
     M.locations = Set(initialize = CO2LocList)
@@ -164,17 +166,18 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.facilities = Var( M.stations, domain = NonNegativeReals)
     #Whether a facility is being used. For calculating Capex
     M.isopen = Var(M.stations, domain = Boolean)
-    #Whether the CO2 locations are open
-    M.locopen = Var(M.locations, domain = Boolean)
-    #Amount of hydrogen in MJ going into C02 locs.
-    M.hydrouse = Var(M.locations, domain = NonNegativeReals)
-    #Assignment of C02locs to H2 transformers
-    M.assignments = Var(range(locationNum*len(H2TransList)), domain = Boolean)
     #Amount going through connectors
     M.connections = Var(M.connectors, domain = NonNegativeReals)
     #Amount coming into a transformer. Used to consider transformer production ratio
     M.trintotals = Var(M.trans, domain = NonNegativeReals)
     M.carbonsum = Var(domain = NonNegativeReals)
+    M.carbonsum.setub(CO2)
+    #Amount of hydrogen in MJ going into C02 locs.
+    M.hydrouse = Var(M.locations, domain = NonNegativeReals)
+    #Whether the CO2 locations are open
+    M.locopen = Var(M.locations, domain = Boolean)
+    #Assignment of C02locs to H2 transformers
+    M.assignments = Var(range(locationNum*len(H2TransList)), domain = Boolean)
     
     #Populates capex costs
     for fac in M.stations:
@@ -243,13 +246,23 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     M.hubconstraint = Constraint(M.hubs, rule = hubrule)
     M.hubsum = Constraint(M.hubs, rule = hubcount)
+#Dealing with CO2 locations here    
+#Set maximum.
+    for loc in CO2LocList:
+        M.hydrouse[loc].setub(loc.cap)
     
-    #Dealing with CO2 locations here
+#Sum equation that adds up numbers.
+    def hydrosum(model, hy):
+        return sum(model.assignments[hy.hynum*locationNum + loc.ind] * model.hydrouse[loc] for loc in CO2LocList) >= M.trintotals[hy]
+    
+    M.hopethisworks = Constraint(M.hytrans, rule = hydrosum)
+        
+#
     def binruleloc(model, loc):
         return M.hydrouse[loc] - M.locopen[loc]*M.hydrouse[loc] <= 0
     
     M.checklocopen = Constraint(M.locations, rule = binruleloc)
-    
+#    
     M.SOS_set_constraint = SOSConstraint(var = M.isopen, index = [TransList[0],TransList[1],TransList[2]], sos = 1)
     
     #Quadratic constraint that turns isopen on and off
@@ -260,7 +273,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
 
 
     M.carbonset = Constraint(expr = summation(M.facilities, M.carbon, index = M.sources) == M.carbonsum)
-    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)    
+#    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)    
         
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)
@@ -274,7 +287,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
 def opti(model):
     opt = SolverFactory('gurobi', tee = True)
     results = opt.solve(model, tee = True)
-#    print(model.display())
+    print(model.display())
     return results
 
 
@@ -362,6 +375,7 @@ for i in range(len(SinkIn.index)):
             SinkList[i].incons.append(con)
 
 #Initialize the transfomers
+hyn = 0
 for i in range(len(TransIn.index)):
     TransList.append(Transformer(name = TransIn.loc[i,'Name'],
                                  capex = TransIn.loc[i,'Capex'],
@@ -372,6 +386,8 @@ for i in range(len(TransIn.index)):
     
     outcols.append(TransList[i].name + 'Production')
     if TransIn.loc[i,'Input0'] == 'hydrogen':
+        TransList[i].hynum = hyn
+        hyn = hyn + 1
         H2TransList.append(TransList[i])
     
     k = 0
