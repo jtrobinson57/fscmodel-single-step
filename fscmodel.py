@@ -146,7 +146,10 @@ class CO2Loc:
     def __str__(self):
         return "CO2 Location:" + self.name
     
+
+    
 def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2):
+
     M = ConcreteModel()
     
     M.connectors = Set(initialize = ConnList)
@@ -157,6 +160,17 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.hubs = Set(initialize = HubList)
     M.stations = Set(initialize = SourceList + SinkList + TransList + HubList)
     M.locations = Set(initialize = CO2LocList)
+
+    
+    
+    letsinit = {}
+    for loc in M.locations:
+        iii = []
+        for j in range(hyn):
+            iii.append(locationNum*j + loc.ind)
+        letsinit[loc] = iii
+    M.letsgo = Set(M.locations, initialize = letsinit)
+    print(M.letsgo[CO2LocList[6]].value)
     
     M.c = Param(M.stations, mutable = True)
     M.carbon = Param(M.sources, mutable = True)
@@ -257,14 +271,15 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     M.hopethisworks = Constraint(M.hytrans, rule = hydrosum)
         
-#
+
     def binruleloc(model, loc):
-        return M.hydrouse[loc] - M.locopen[loc]*M.hydrouse[loc] <= 0
+        return model.hydrouse[loc] - model.locopen[loc]*model.hydrouse[loc] <= 0
     
     M.checklocopen = Constraint(M.locations, rule = binruleloc)
-#    
-    M.SOS_set_constraint = SOSConstraint(var = M.isopen, index = [TransList[0],TransList[1],TransList[2]], sos = 1)
     
+#    for i in range(locationNum):
+#        M.SOS_set_constraint = SOSConstraint(var = M.assignments, index = [i,locationNum+i], sos = 1)
+    M.sososo = SOSConstraint(M.locations, var = M.assignments, index = M.letsgo, sos = 1 )
     #Quadratic constraint that turns isopen on and off
     def binrule(model, fac):
         return M.facilities[fac] - M.isopen[fac]*M.facilities[fac] <= 0
@@ -449,6 +464,7 @@ locationNum = j
 
 #Calculate CO2 location properties
 
+
 for CO2Loc in CO2LocList:
     
     CO2Loc.checkMinMax()
@@ -464,6 +480,10 @@ checkModel(ConnList, EnergyList)
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
 results = opti(model)
+for loc in CO2LocList:
+    print(model.hydrouse[loc].value)
+    print(model.assignments[loc.ind].value)
+    print(model.assignments[locationNum + loc.ind].value)
 
 #Output formatting starts here
 
