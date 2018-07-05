@@ -450,7 +450,6 @@ model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocLi
 
 results = opti(model)
 
-
 #Output formatting starts here
 
     

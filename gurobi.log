@@ -1,0 +1,310 @@
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:23:29
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmp55tusw0q.pyomo.lp
+Reading time = 0.02 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 9e+02]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.00s
+
+Explored 0 nodes (0 simplex iterations) in 0.00 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:38:51
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmp7tpxjwon.pyomo.lp
+Reading time = 0.02 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 9e+02]
+  QRHS range       [1e-01, 1e-01]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.00s
+
+Explored 0 nodes (0 simplex iterations) in 0.00 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:38:59
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmphocj2utu.pyomo.lp
+Reading time = 0.02 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 9e+02]
+  QRHS range       [1e+00, 1e+00]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.00s
+
+Explored 0 nodes (0 simplex iterations) in 0.02 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:39:09
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmp21hq8e29.pyomo.lp
+Reading time = 0.00 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 9e+02]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.00s
+
+Explored 0 nodes (0 simplex iterations) in 0.01 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:39:23
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmpfxdqeezs.pyomo.lp
+Reading time = 0.02 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 9e+02]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.00s
+
+Explored 0 nodes (0 simplex iterations) in 0.00 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:40:42
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmpg9tdra13.pyomo.lp
+Reading time = 0.02 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 9e+02]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.00s
+
+Explored 0 nodes (0 simplex iterations) in 0.00 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:41:03
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmp4ihfz7d2.pyomo.lp
+Reading time = 0.02 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 9e+02]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.00s
+
+Explored 0 nodes (0 simplex iterations) in 0.02 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:41:18
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmp8ktjprgo.pyomo.lp
+Reading time = 0.02 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 9e+02]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.00s
+
+Explored 0 nodes (0 simplex iterations) in 0.02 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:42:07
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmp1sm6gdo7.pyomo.lp
+Reading time = 0.02 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 9e+02]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.00s
+
+Explored 0 nodes (0 simplex iterations) in 0.00 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:42:29
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmpi6t4y2k0.pyomo.lp
+Reading time = 0.02 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 9e+02]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.00s
+
+Explored 0 nodes (0 simplex iterations) in 0.00 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
+
+Gurobi 8.0.0 (win64, Python) logging started 07/05/18 10:42:52
+
+Academic license - for non-commercial use only
+Read LP format model from file H:\fscmodel-single-step-master\fscmodel-single-step\tmpb4zmz82t.pyomo.lp
+Reading time = 0.02 seconds
+x706: 65 rows, 392 columns, 139 nonzeros
+Optimize a model with 65 rows, 392 columns and 139 nonzeros
+Model has 178 quadratic constraints
+Model has 1 SOS constraint
+Variable types: 214 continuous, 178 integer (178 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 2e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 5e-02]
+  Bounds range     [1e+00, 1e+07]
+  RHS range        [1e+00, 1e+03]
+Presolve removed 58 rows and 57 columns
+Presolve time: 0.02s
+
+Explored 0 nodes (0 simplex iterations) in 0.02 seconds
+Thread count was 1 (of 4 available processors)
+
+Solution count 0
+
+Best objective -, best bound -, gap -
+Freed default Gurobi environment
