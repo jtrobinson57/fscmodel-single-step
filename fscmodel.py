@@ -294,7 +294,8 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
 #    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)    
         
     def objrule(model):
-       ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations) + summation(model.locopen, model.loccap, index = model.locations) + summation(model.hydrouse, model.locopex, index = model.locations) 
+       ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
+       + summation(model.locopen, model.loccap, index = model.locations) + summation(model.hydrouse, model.locopex, index = model.locations) 
        return ob
 
     
@@ -485,6 +486,14 @@ model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocLi
 
 results = opti(model)
 
+for loc in CO2LocList:
+    if model.locopen[loc].value > 0:
+        print(loc.ind)
+        print(model.hydrouse[loc].value)
+        print(model.assignments[loc.ind].value)
+        print(model.assignments[locationNum + loc.ind].value)
+        print(model.locopen[loc].value)
+
 #Output formatting starts here
     
     #Format first sheet
@@ -505,23 +514,29 @@ for fac in model.stations:
        
     #Format second sheet
 
-i = 0
-locNames = ['']*locationNum
-locPosts = [0]*locationNum
-locAmts = [0]*locationNum
-locProcs = ['']*locationNum
+#i = 0
+#locNames = ['']*locationNum
+#locPosts = [0]*locationNum
+#locAmts = [0]*locationNum
+#locProcs = ['']*locationNum
+locNames = []
+locPosts = []
+locAmts = []
+locProcs = []
 
 for loc in CO2LocList:
-    if model.locopen[loc].value > 0:
-        locNames[i] = loc.name
-        locPosts[i] = loc.postal
-        locAmts[i] = model.hydrouse[loc].value
+    if model.locopen[loc].value > 0.0000001:
+        locNames.append(loc.name)
+        locPosts.append(loc.postal)
+        locAmts.append(model.hydrouse[loc].value)
         for j in range(hyn):
             if model.assignments[j*locationNum + loc.ind] == 1:
                 n = j
+                break
+            
         procName = H2TransList[n].name
-        locProcs[i] = procName
-        i = i + 1
+        locProcs.append(procName)
+#        i = i + 1
 
 locdf = pd.DataFrame({'Name': locNames,
                       'Postal Code': locPosts,
