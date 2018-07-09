@@ -103,7 +103,7 @@ class CO2Loc:
         self.ind = ind
         self.postal = postal
         self.dist = dist / 100.0       #Hundreds of km
-        self.cap = cap                 #MW
+        self.cap = cap / 1000          #Read as MW, stored as GW
         self.capex = 0                 #Euros
         self.indOpex = 0               #Euros
         self.dirOpex = 0               #Euros per kg H2
@@ -113,7 +113,7 @@ class CO2Loc:
     def findCapex(self):
         
         self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap))    #returns euro/KW
-        self.capex = self.capex * 1000 * self.cap                        #returns euros
+        self.capex = self.capex * 1000000 * self.cap                        #returns euros
         
     def findDirOpex(self):
         
@@ -124,7 +124,7 @@ class CO2Loc:
         
         #I only made this so verbose to make the unit conversions a bit more clear
         
-        MW = self.cap
+        MW = self.cap * 1000
         MJpa = MW * 3600 * 8000  #Converted to MJ/a
         MJph = MJpa / 8000       #Converted to MJ/h
         KGph = MJph / 43.1       #Converted to KG/h
@@ -138,7 +138,7 @@ class CO2Loc:
     
     def changeCapUnitMJ(self):
         
-        self.cap = self.cap * 3600 * 8000  #Switch from MW to MJ/yr for a single year
+        self.cap = self.cap * 3600 * 8000 * 1000 #Switch from GW to MJ/yr for a single year
     
     def __lt__(self,other):
         if isinstance(other, Connection):
@@ -342,8 +342,8 @@ outcols = ['Total Cost', 'CO2']
 CO2Max = RestrIn.loc[0,'CO2 Max']
 wacc = RestrIn.loc[0, 'WACC']
 lifetime = RestrIn.loc[0, 'Lifetime']
-minCO2PlantSize = RestrIn.loc[0, 'MinCO2PlantSize']
-maxCO2PlantSize = RestrIn.loc[0, 'MaxCO2PlantSize']
+minCO2PlantSize = RestrIn.loc[0, 'MinCO2PlantSize'] / 1000
+maxCO2PlantSize = RestrIn.loc[0, 'MaxCO2PlantSize'] / 1000
 
 #Energy sources available from sources
 for i in range(len(SourceIn.index)):
@@ -456,12 +456,12 @@ for i in range(len(HubIn.index)):
 j = 0
 
 for i in range(len(CO2LocIn.index)):                          #Checks to make sure plant capacity is within given bounds
-    if(CO2LocIn.loc[i,'Plant size [MW]'] >= minCO2PlantSize): #according to the input restrictions sheet                                                             
+    if(CO2LocIn.loc[i,'Plant Size [MW]'] >= minCO2PlantSize): #according to the input restrictions sheet                                                             
         CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],
                                  ind = j,                               #This if statement only checks mins, maxes
                                  postal = CO2LocIn.loc[i, 'PostalCode'],  #Are checked below, during the calculation
                                  dist = CO2LocIn.loc[i, 'Spalte2'],       #of CO2 location properties by checkMinMax()
-                                 cap = CO2LocIn.loc[i, 'Plant size [MW]']))
+                                 cap = CO2LocIn.loc[i, 'Plant Size [MW]']))
         j = j + 1  
    
 locationNum = j
