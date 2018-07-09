@@ -176,6 +176,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.carbon = Param(M.sources, mutable = True)
     M.cape = Param(M.stations, mutable = True)
     M.loccap = Param(M.locations, mutable = True)
+    M.locopex = Param(M.locations, mutable = True)
     
     #For the amount in facilities, for calculating Opex. For transformer, the amount coming out
     M.facilities = Var( M.stations, domain = NonNegativeReals)
@@ -198,7 +199,8 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     for fac in M.stations:
         M.cape[fac]=fac.capex
     for loc in M.locations:
-        M.loccap[loc] = loc.K
+        M.loccap[loc] = loc.K + loc.indOpex
+        M.locopex[loc] = loc.dirOpex
     
     #Constructs cost vector from opex and carbon constraints from sources.
     for fac in M.stations:
@@ -292,7 +294,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
 #    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)    
         
     def objrule(model):
-       ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations) + summation(model.locopen, model.loccap, index = model.locations)
+       ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations) + summation(model.locopen, model.loccap, index = model.locations) + summation(model.hydrouse, model.locopex, index = model.locations) 
        return ob
 
     
