@@ -199,7 +199,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     for fac in M.stations:
         M.cape[fac]=fac.capex
     for loc in M.locations:
-        M.loccap[loc] = loc.K + loc.indOpex
+        M.loccap[loc] = loc.K + (loc.indOpex*loc.cap)/(3600*8000)   #Does a unit conversion to MW
         M.locopex[loc] = loc.dirOpex
     
     #Constructs cost vector from opex and carbon constraints from sources.
