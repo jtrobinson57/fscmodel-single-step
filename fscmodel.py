@@ -482,17 +482,11 @@ checkModel(ConnList, EnergyList)
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
 results = opti(model)
-for loc in CO2LocList:
-    if model.locopen[loc].value > 0:
-        print(loc.ind)
-        print(model.hydrouse[loc].value)
-        print(model.assignments[loc.ind].value)
-        print(model.assignments[locationNum + loc.ind].value)
-        print(model.locopen[loc].value)
 
 #Output formatting starts here
-
     
+    #Format first sheet
+
 outdf = pd.DataFrame(np.zeros((1,len(outcols))), columns = outcols)
 outdf.at[0, 'Total Cost'] = model.Obj()
 outdf.at[0, 'CO2'] = model.carbonsum.value
@@ -506,7 +500,35 @@ for fac in model.stations:
             outdf.at[0, fac.name + '-' + con.energyType] = model.connections[con].value
     else:
         outdf.at[0, fac.name + 'Usage'] = model.facilities[fac].value
-        
+       
+    #Format second sheet
 
+i = 0
+locNames = ['']*locationNum
+locPosts = [0]*locationNum
+locAmts = [0]*locationNum
+locProcs = ['']*locationNum
 
-outdf.to_excel('output.xlsx', sheet_name='Sheet1')
+for loc in CO2LocList:
+    if model.locopen[loc].value > 0:
+        locNames[i] = loc.name
+        locPosts[i] = loc.postal
+        locAmts[i] = model.hydrouse[loc].value
+        for j in range(hyn):
+            if model.assignments[j*locationNum + loc.ind] == 1:
+                n = j
+        procName = H2TransList[n].name
+        locProcs[i] = procName
+        i = i + 1
+
+locdf = pd.DataFrame({'Name': locNames,
+                      'Postal Code': locPosts,
+                      'Amount Used': locAmts,
+                      'Process Used': locProcs})    
+
+writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
+    
+outdf.to_excel(writer, sheet_name='FacilityInfo')
+locdf.to_excel(writer, sheet_name='CO2LocationInfo')
+
+writer.save()
