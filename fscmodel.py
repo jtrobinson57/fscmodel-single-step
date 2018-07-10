@@ -296,15 +296,18 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     print(M.facilities[TransList[1]].value)
 
     M.carbonset = Constraint(expr = summation(M.facilities, M.carbon, index = M.sources) == M.carbonsum)
-#    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)    
-#    i, j = 0, 0    
-#    w, h = len(TransList), len(CO2LocList);
-#    costPKGMatrix = [[0 for x in range(w)] for y in range(h)]
-#    for Transformer in TransList:
-#        for CO2Loc in CO2LocList:
-#            costPKGMatrix[i,j] = Transformer.CO2Ratio * CO2Loc.costPKG
-#            j = j + 1
-#        i = i + 1
+#    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)  
+    
+    i, j = 0, 0    
+    w, h = len(TransList), len(CO2LocList);
+    costPKGMatrix = np.zeros((w,h))
+    
+    for Transformer in TransList:
+        j = 0
+        for CO2Loc in CO2LocList:
+            costPKGMatrix[i,j] = Transformer.CO2Ratio * CO2Loc.costPKG
+            j = j + 1
+        i = i + 1
     
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
