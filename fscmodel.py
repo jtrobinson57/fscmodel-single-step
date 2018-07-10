@@ -138,9 +138,9 @@ class CO2Loc:
         if self.cap > maxCO2PlantSize:     #Admittedly, this function only checks maxes, mins are checked below
             self.cap = maxCO2PlantSize     #at the point of read-in
     
-    def changeCapUnitMJ(self):
+    def changeCapUnit(self):
         
-        self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to MJ/yr for a single year
+        self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to PJ/yr for a single year
     
     def __lt__(self,other):
         if isinstance(other, Connection):
@@ -203,7 +203,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         M.cape[fac]=fac.capex
         
     for loc in M.locations:
-        M.loccap[loc] = loc.K + (loc.indOpex*loc.cap) #/(3600*8000)   #Does a unit conversion to MW
+        M.loccap[loc] = loc.K + (loc.indOpex*loc.cap)    #Currently using the MW cap
         M.locopex[loc] = loc.dirOpex 
         
     #Constructs cost vector from opex and carbon constraints from sources.
@@ -293,7 +293,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         return M.facilities[fac] - M.isopen[fac]*M.facilities[fac] <= 0
     
     M.checkopen = Constraint(M.stations, rule = binrule)
-    print(M.facilities[TransList[1]].value)
+#    print(M.facilities[TransList[1]].value)
 
     M.carbonset = Constraint(expr = summation(M.facilities, M.carbon, index = M.sources) == M.carbonsum)
 #    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)  
@@ -497,7 +497,7 @@ for CO2Loc in CO2LocList:
     CO2Loc.findCapex()
     CO2Loc.findDirOpex()
     CO2Loc.findIndOpex()
-    CO2Loc.changeCapUnitMJ()
+    CO2Loc.changeCapUnit()
     
     CO2Loc.K = CO2Loc.capex * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
 
