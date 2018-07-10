@@ -48,13 +48,14 @@ class Sink:
             return self.name < other.name
     
 class Transformer:
-    def __init__(self, name, capex, opex, totalEff, outMin, outMax):
+    def __init__(self, name, capex, opex, totalEff, outMin, outMax, CO2Ratio):
         self.name = name
         self.capex = capex
         self.opex = opex
         self.totalEff = totalEff
         self.outMin = outMin
         self.outMax = outMax
+        self.CO2Ratio = CO2Ratio
         self.inputs = {}
         self.products = {}
         self.incons = []
@@ -98,33 +99,34 @@ class Connection:
         return "Connection:" + self.name + ", " + self.energyType
 
 class CO2Loc:
-    def __init__(self,name,ind,postal,dist,cap):
+    def __init__(self,name,ind,postal,dist,cap,costPKG):
         self.name = name
         self.ind = ind
         self.postal = postal
         self.dist = dist / 100.0       #Hundreds of km
-        self.cap = cap / 1000          #GW
+        self.cap = cap #/ 1000           #MW
+        self.capPJ = 0
         self.capex = 0                 #Euros
         self.indOpex = 0               #Euros
         self.dirOpex = 0               #Euros per kg H2
         self.K = 0                     #Euros
-        self.Ktotal = 0
+        self.costPKG = 0
         
     def findCapex(self):
         
-        self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap))    #returns euro/KW
-        self.capex = self.capex * 1000000 * self.cap                        #returns euros
+        self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000))    #returns euro/KW
+        self.capex = self.capex * 1000 * self.cap                        #returns euros
         
     def findDirOpex(self):
         
         self.dirOpex = 5.190866 + (3.999796 - 5.190866)/(1 + (self.dist/2.020612)**1.534203) #returns euros/kg of H2
-        self.dirOpex = self.dirOpex * (1/0.84) * (1/43.1)                                    #converts to euros/MJ of fuel
+        self.dirOpex = self.dirOpex / 120 * 10**9 # * (1/0.84) * (1/43.1) # * self.cap * 3600 * 8000           #converts to euros/MJ of fuel
         
     def findIndOpex(self):
         
         #I only made this so verbose to make the unit conversions a bit more clear
         
-        MW = self.cap * 1000
+        MW = self.cap# * 1000
         MJpa = MW * 3600 * 8000  #Converted to MJ/a
         MJph = MJpa / 8000       #Converted to MJ/h
         KGph = MJph / 43.1       #Converted to KG/h
@@ -138,7 +140,7 @@ class CO2Loc:
     
     def changeCapUnitMJ(self):
         
-        self.cap = self.cap * 3600 * 8000  #Switch from MW to MJ/yr for a single year
+        self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to MJ/yr for a single year
     
     def __lt__(self,other):
         if isinstance(other, Connection):
@@ -177,6 +179,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.cape = Param(M.stations, mutable = True)
     M.loccap = Param(M.locations, mutable = True)
     M.locopex = Param(M.locations, mutable = True)
+    M.CO2costs = Param(M.locations, mutable = True)
     
     #For the amount in facilities, for calculating Opex. For transformer, the amount coming out
     M.facilities = Var( M.stations, domain = NonNegativeReals)
@@ -198,10 +201,11 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     #Populates capex costs
     for fac in M.stations:
         M.cape[fac]=fac.capex
+        
     for loc in M.locations:
-        M.loccap[loc] = loc.K + (loc.indOpex*loc.cap)/(3600*8000)   #Does a unit conversion to MW
-        M.locopex[loc] = loc.dirOpex
-    
+        M.loccap[loc] = loc.K + (loc.indOpex*loc.cap) #/(3600*8000)   #Does a unit conversion to MW
+        M.locopex[loc] = loc.dirOpex 
+        
     #Constructs cost vector from opex and carbon constraints from sources.
     for fac in M.stations:
         M.c[fac] = fac.opex
@@ -268,7 +272,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
 #Dealing with CO2 locations here    
 #Set maximum.
     for loc in CO2LocList:
-        M.hydrouse[loc].setub(loc.cap)
+        M.hydrouse[loc].setub(loc.capPJ)
     
 #Sum equation that adds up numbers.
     def hydrosum(model, hy):
@@ -289,13 +293,25 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         return M.facilities[fac] - M.isopen[fac]*M.facilities[fac] <= 0
     
     M.checkopen = Constraint(M.stations, rule = binrule)
+    print(M.facilities[TransList[1]].value)
 
     M.carbonset = Constraint(expr = summation(M.facilities, M.carbon, index = M.sources) == M.carbonsum)
 #    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)    
-        
+#    i, j = 0, 0    
+#    w, h = len(TransList), len(CO2LocList);
+#    costPKGMatrix = [[0 for x in range(w)] for y in range(h)]
+#    for Transformer in TransList:
+#        for CO2Loc in CO2LocList:
+#            costPKGMatrix[i,j] = Transformer.CO2Ratio * CO2Loc.costPKG
+#            j = j + 1
+#        i = i + 1
+    
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
-       + summation(model.locopen, model.loccap, index = model.locations) + summation(model.hydrouse, model.locopex, index = model.locations) 
+       + summation(model.locopen, model.loccap, index = model.locations) + summation(model.hydrouse, model.locopex, index = model.locations) # + summation(model.locopen, model.locopex, index = M.locations) # 
+#       for loc in CO2LocList:
+#           if model.locopen[loc].value == None:
+#               ob = ob + 2455555553 
        return ob
 
     
@@ -401,7 +417,8 @@ for i in range(len(TransIn.index)):
                                  opex = TransIn.loc[i,'Opex'],
                                  totalEff = TransIn.loc[i,'TotalEff'],
                                  outMin = TransIn.loc[i, 'OutMin'],
-                                 outMax = TransIn.loc[i, 'OutMax']))
+                                 outMax = TransIn.loc[i, 'OutMax'],
+                                 CO2Ratio = TransIn.loc[i, 'CO2 Kg/MJ']))
     
     outcols.append(TransList[i].name + 'Production')
     if TransIn.loc[i,'Input0'] == 'hydrogen':
@@ -462,7 +479,8 @@ for i in range(len(CO2LocIn.index)):                          #Checks to make su
                                  ind = j,                               #This if statement only checks mins, maxes
                                  postal = CO2LocIn.loc[i, 'PostalCode'],  #Are checked below, during the calculation
                                  dist = CO2LocIn.loc[i, 'Spalte2'],       #of CO2 location properties by checkMinMax()
-                                 cap = CO2LocIn.loc[i, 'Plant size [MW]']))
+                                 cap = CO2LocIn.loc[i, 'Plant size [MW]'],
+                                 costPKG = CO2LocIn.loc[i, 'CO2 Cost pkg']))
         j = j + 1  
    
 locationNum = j
@@ -485,14 +503,14 @@ checkModel(ConnList, EnergyList)
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
 results = opti(model)
-
-for loc in CO2LocList:
-    if model.locopen[loc].value > 0:
-        print(loc.ind)
-        print(model.hydrouse[loc].value)
-        print(model.assignments[loc.ind].value)
-        print(model.assignments[locationNum + loc.ind].value)
-        print(model.locopen[loc].value)
+#
+#for loc in CO2LocList:
+#    if model.locopen[loc].value > 10**-12:
+#        print(loc.ind)
+#        print(model.hydrouse[loc].value)
+#        print(model.assignments[loc.ind].value)
+#        print(model.assignments[locationNum + loc.ind].value)
+#        print(model.locopen[loc].value)
 
 #Output formatting starts here
     
