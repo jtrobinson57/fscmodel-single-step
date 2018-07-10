@@ -110,7 +110,7 @@ class CO2Loc:
         self.indOpex = 0               #Euros
         self.dirOpex = 0               #Euros per kg H2
         self.K = 0                     #Euros
-        self.costPKG = 0
+        self.costPKG = costPKG
         
     def findCapex(self):
         
@@ -298,23 +298,15 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.carbonset = Constraint(expr = summation(M.facilities, M.carbon, index = M.sources) == M.carbonsum)
 #    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)  
     
-    i, j = 0, 0    
-    w, h = len(TransList), len(CO2LocList);
-    costPKGMatrix = np.zeros((w,h))
-    
-    for Transformer in TransList:
-        j = 0
-        for CO2Loc in CO2LocList:
-            costPKGMatrix[i,j] = Transformer.CO2Ratio * CO2Loc.costPKG
-            j = j + 1
-        i = i + 1
+
+
     
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
        + summation(model.locopen, model.loccap, index = model.locations) + summation(model.hydrouse, model.locopex, index = model.locations) # + summation(model.locopen, model.locopex, index = M.locations) # 
-#       for loc in CO2LocList:
-#           if model.locopen[loc].value == None:
-#               ob = ob + 2455555553 
+       for i in range(hyn):
+           for j in range(locationNum):
+               ob = ob + model.hydrouse[CO2LocList[j]]*model.assignments[i*locationNum + j]*costPKGMatrix[i,j]
        return ob
 
     
@@ -502,6 +494,11 @@ for CO2Loc in CO2LocList:
     CO2Loc.K = CO2Loc.capex * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
 
 checkModel(ConnList, EnergyList)
+
+costPKGMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
+for Trans in H2TransList:
+    for loc in CO2LocList:
+        costPKGMatrix[Trans.hynum,loc.ind] = Trans.CO2Ratio * loc.costPKG
 
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
