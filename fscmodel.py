@@ -120,7 +120,7 @@ class CO2Loc:
     def findDirOpex(self):
         
         self.dirOpex = 5.190866 + (3.999796 - 5.190866)/(1 + (self.dist/2.020612)**1.534203) #returns euros/kg of H2
-        self.dirOpex = self.dirOpex / 120 * 10**9 # * (1/0.84) * (1/43.1) # * self.cap * 3600 * 8000           #converts to euros/MJ of fuel
+        self.dirOpex = self.dirOpex / 120 * 10**9          #converts to euros/PJ of fuel
         
     def findIndOpex(self):
         
@@ -131,7 +131,7 @@ class CO2Loc:
         MJph = MJpa / 8000       #Converted to MJ/h
         KGph = MJph / 43.1       #Converted to KG/h
         
-        self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4  #returns euros per MW of plant capacity
+        self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4  #returns euros 
     
     def checkMinMax(self):     #Checks to make sure plant capacity is within given bounds
                                #according to the input restrictions sheet       
@@ -203,7 +203,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         M.cape[fac]=fac.capex
         
     for loc in M.locations:
-        M.loccap[loc] = loc.K + (loc.indOpex*loc.cap)    #Currently using the MW cap
+        M.loccap[loc] = loc.K + (loc.indOpex)    #No longer using the MW cap
         M.locopex[loc] = loc.dirOpex 
         
     #Constructs cost vector from opex and carbon constraints from sources.
@@ -303,7 +303,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
-       + summation(model.locopen, model.loccap, index = model.locations) + summation(model.hydrouse, model.locopex, index = model.locations) # + summation(model.locopen, model.locopex, index = M.locations) # 
+       + (summation(model.locopen, model.loccap, index = model.locations) + summation(model.hydrouse, model.locopex, index = model.locations)) # + summation(model.locopen, model.locopex, index = M.locations) # 
        for i in range(hyn):
            for j in range(locationNum):
                ob = ob + model.hydrouse[CO2LocList[j]]*model.assignments[i*locationNum + j]*costPKGMatrix[i,j]
