@@ -10,10 +10,11 @@ from pyomo.opt import SolverFactory
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import networkx as nx
 import math
 
 class Source:
-    def __init__(self,name,energyType,capex,opex,CO2,minProd,maxProd):
+    def __init__(self,name,energyType,capex,opex,CO2,minProd,maxProd,pos):
         self.name = name
         self.energyType = energyType
         self.capex = capex
@@ -22,6 +23,7 @@ class Source:
         self.outcons = []
         self.minProd = minProd
         self.maxProd = maxProd
+        self.pos = pos
     
     def __str__(self):
         return "Source:" + self.name + ", " + self.energyType
@@ -32,13 +34,14 @@ class Source:
 
 
 class Sink:
-    def __init__(self,name,capex,opex,energyType,demand):
+    def __init__(self,name,capex,opex,energyType,demand,pos):
         self.name = name
         self.energyType = energyType
         self.capex = capex
         self.opex = opex
         self.demand = demand
         self.incons = []
+        self.pos = pos
         
     def __str__(self):
         return "Sink:" + self.name + ", " + self.energyType
@@ -48,7 +51,7 @@ class Sink:
             return self.name < other.name
     
 class Transformer:
-    def __init__(self, name, capex, opex, totalEff, outMin, outMax, CO2Ratio):
+    def __init__(self, name, capex, opex, totalEff, outMin, outMax, CO2Ratio,pos):
         self.name = name
         self.capex = capex
         self.opex = opex
@@ -61,6 +64,7 @@ class Transformer:
         self.incons = []
         self.outcons = []
         self.hynum = None
+        self.pos = pos
     
     def __str__(self):
         return "Transformer:" + self.name
@@ -70,13 +74,14 @@ class Transformer:
             return self.name < other.name
         
 class Hub:
-    def __init__(self,name,energyType,capex=0,opex=0):
+    def __init__(self,name,energyType,capex,opex,pos):
         self.name = name
         self.energyType = energyType
         self.capex = capex
         self.opex = opex
         self.incons = []
         self.outcons = []
+        self.pos = pos
     
     def __str__(self):
         return "Hub:" + self.name + ", " + self.energyType
@@ -371,6 +376,9 @@ for i in range(len(SinkIn.index)):
 #All energy types 
 EnergyList = FuelTypeList + DemandTypeList
 
+G = nx.DiGraph()
+posits = {}
+
 #Initialize the connectors        
 for i in range(len(ConnIn.index)):
     ConnList.append(Connection(name = ConnIn.loc[i,'Name'],
@@ -386,7 +394,10 @@ for i in range(len(SourceIn.index)):
                              opex = SourceIn.loc[i,'Opex'], 
                              CO2 = SourceIn.loc[i,'CO2'],
                              minProd = SourceIn.loc[i,'MinProduction'],
-                             maxProd = SourceIn.loc[i, 'MaxProduction']))
+                             maxProd = SourceIn.loc[i, 'MaxProduction'],
+                             pos = (SourceIn.loc[i, 'X'],SourceIn.loc[i, 'Y'])))
+    G.add_node(SourceList[i].name)
+    posits[SourceList[i].name] =  SourceList[i].pos
     
     for con in ConnList:
         if con.inp==SourceList[i].name and con.energyType==SourceList[i].energyType:
@@ -398,7 +409,10 @@ for i in range(len(SinkIn.index)):
                          energyType = SinkIn.loc[i,'EnergyType'],
                          capex = SinkIn.loc[i,'Capex'],
                          opex = SinkIn.loc[i,'Opex'],
-                         demand = SinkIn.loc[i,'Demand']))
+                         demand = SinkIn.loc[i,'Demand'],
+                         pos = (SinkIn.loc[i, 'X'],SinkIn.loc[i, 'Y'])))
+    G.add_node(SinkList[i].name)
+    posits[SinkList[i].name] =  SinkList[i].pos
     
     for con in ConnList:
         if con.out==SinkList[i].name and con.energyType==SinkList[i].energyType:
@@ -413,7 +427,10 @@ for i in range(len(TransIn.index)):
                                  totalEff = TransIn.loc[i,'TotalEff'],
                                  outMin = TransIn.loc[i, 'OutMin'],
                                  outMax = TransIn.loc[i, 'OutMax'],
-                                 CO2Ratio = TransIn.loc[i, 'CO2 Kg/MJ']))
+                                 CO2Ratio = TransIn.loc[i, 'CO2 Kg/MJ'],
+                                 pos = (TransIn.loc[i, 'X'],TransIn.loc[i, 'Y'])))
+    G.add_node(TransList[i].name)
+    posits[TransList[i].name] =  TransList[i].pos
     
     outcols.append(TransList[i].name + 'Production')
     if TransIn.loc[i,'Input0'] == 'hydrogen':
@@ -456,7 +473,10 @@ for i in range(len(HubIn.index)):
     HubList.append(Hub(name = HubIn.loc[i,'Name'],
                        energyType = HubIn.loc[i,'EnergyType'],
                        capex = HubIn.loc[i,'Capex'],
-                       opex = HubIn.loc[i,'Opex']))
+                       opex = HubIn.loc[i,'Opex'],
+                       pos = (HubIn.loc[i, 'X'],HubIn.loc[i, 'Y'])))
+    G.add_node(HubList[i].name)
+    posits[HubList[i].name] =  HubList[i].pos
     
     outcols.append(HubList[i].name + 'Usage')
     for con in ConnList:
@@ -464,6 +484,9 @@ for i in range(len(HubIn.index)):
             HubList[i].incons.append(con)
         elif con.inp==HubList[i].name and con.energyType==HubList[i].energyType:
             HubList[i].outcons.append(con)
+            
+for con in ConnList:
+    G.add_edge(con.inp, con.out)
     
 #Initialize the CO2 Locations
 j = 0
@@ -512,6 +535,10 @@ results = opti(model)
 #        print(model.assignments[locationNum + loc.ind].value)
 #        print(model.locopen[loc].value)
 
+#for con in ConnList:
+#    if con.energyType == 'electricity':
+#        print(model.connections[con].value)
+
 #Output formatting starts here
     
     #Format first sheet
@@ -549,6 +576,14 @@ for loc in CO2LocList:
             
         procName = H2TransList[n].name
         locProcs.append(procName)
+        
+wgts = []       
+for con in ConnList:
+    if model.connections[con].value > 0.000001:
+        wgts.append(model.connections[con].value/100)
+    else:
+        wgts.append(0)
+        
 
 locdf = pd.DataFrame({'Name': locNames,
                       'Postal Code': locPosts,
@@ -561,5 +596,6 @@ outdf.to_excel(writer, sheet_name='FacilityInfo')
 locdf.to_excel(writer, sheet_name='CO2LocationInfo')
 
 writer.save()
-
+nx.draw(G, pos = posits, with_labels = True, node_shape = 's')
+nx.draw_networkx_edges(G, pos = posits, with_labels = True, width = wgts)
 checkModel(ConnList, EnergyList)
