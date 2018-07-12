@@ -324,8 +324,9 @@ def checkModel(ConnList, entypes):
     for con in ConnList:
         if con.energyType not in entypes:
             raise ValueError(str(con) + ' has an unrecognized energy type.')
-    
-        
+    for Source in SourceList:
+        if not Source.outcons:
+            print('\nWARNING: ' + Source.name + ' has empty out connections, so it probably is not being used. Would you like to check that?' + '\n')
     #What more can be added?
     return None
 
@@ -531,11 +532,6 @@ for fac in model.stations:
        
     #Format second sheet
 
-#i = 0
-#locNames = ['']*locationNum
-#locPosts = [0]*locationNum
-#locAmts = [0]*locationNum
-#locProcs = ['']*locationNum
 locNames = []
 locPosts = []
 locAmts = []
@@ -553,7 +549,6 @@ for loc in CO2LocList:
             
         procName = H2TransList[n].name
         locProcs.append(procName)
-#        i = i + 1
 
 locdf = pd.DataFrame({'Name': locNames,
                       'Postal Code': locPosts,
@@ -566,3 +561,5 @@ outdf.to_excel(writer, sheet_name='FacilityInfo')
 locdf.to_excel(writer, sheet_name='CO2LocationInfo')
 
 writer.save()
+
+checkModel(ConnList, EnergyList)
