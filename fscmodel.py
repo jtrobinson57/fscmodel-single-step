@@ -221,7 +221,8 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     for source in M.sources:
         M.facilities[source].setub(source.maxProd)
         M.facilities[source].setlb(source.minProd)
-    
+        
+    #Transformer related equations.
     def transrule(model, tra):
         return M.facilities[tra] == tra.totalEff * M.trintotals[tra]
     
@@ -274,9 +275,11 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     for loc in CO2LocList:
         M.hydrouse[loc].setub(loc.capPJ)
     
-#Sum equation that adds up numbers.
+#Sum equation that adds up numbers **to the hydrogen In connector.
     def hydrosum(model, hy):
-        return sum(model.assignments[hy.hynum*locationNum + loc.ind] * model.hydrouse[loc] for loc in CO2LocList) >= M.trintotals[hy]
+        for con in hy.incons:
+            if con.energyType=='hydrogen':
+                return sum(model.assignments[hy.hynum*locationNum + loc.ind] * model.hydrouse[loc] for loc in CO2LocList) >= M.connections[con]
     
     M.hopethisworks = Constraint(M.hytrans, rule = hydrosum)
         
