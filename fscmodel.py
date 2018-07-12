@@ -279,7 +279,6 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         return sum(model.assignments[hy.hynum*locationNum + loc.ind] * model.hydrouse[loc] for loc in CO2LocList) >= M.trintotals[hy]
     
     M.hopethisworks = Constraint(M.hytrans, rule = hydrosum)
-        
 
     def binruleloc(model, loc):
         return model.hydrouse[loc] - model.locopen[loc]*model.hydrouse[loc] <= 0
@@ -297,9 +296,6 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
 
     M.carbonset = Constraint(expr = summation(M.facilities, M.carbon, index = M.sources) == M.carbonsum)
 #    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)  
-    
-
-
     
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
