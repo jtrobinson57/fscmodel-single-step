@@ -563,6 +563,11 @@ locNames = []
 locPosts = []
 locAmts = []
 locProcs = []
+locDists = []
+locKs = []
+locH2dirOpexes = []
+locCO2dirOpexes = []
+locindOpexes = []
 
 for loc in CO2LocList:
     if model.locopen[loc].value > 0.0000001:
@@ -576,6 +581,11 @@ for loc in CO2LocList:
             
         procName = H2TransList[n].name
         locProcs.append(procName)
+        locDists.append(loc.dist)
+        locKs.append(loc.K)
+        locH2dirOpexes.append(loc.dirOpex)
+        locCO2dirOpexes.append(loc.costPKG)
+        locindOpexes.append(loc.indOpex)
         
 wgts = []       
 for con in ConnList:
@@ -588,7 +598,12 @@ for con in ConnList:
 locdf = pd.DataFrame({'Name': locNames,
                       'Postal Code': locPosts,
                       'Amount Used': locAmts,
-                      'Process Used': locProcs})    
+                      'Process Used': locProcs,
+                      'Distance' : locDists,
+                      'K Value' : locKs,
+                      'H2 Opex' : locH2dirOpexes,
+                      'CO2 Opex' : locCO2dirOpexes,
+                      'Indirect Opex' : locindOpexes})    
 
 writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
     
