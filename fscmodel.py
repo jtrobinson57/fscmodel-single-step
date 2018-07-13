@@ -112,7 +112,7 @@ class CO2Loc:
         self.cap = cap #/ 1000           #MW
         self.capPJ = 0
         self.capex = 0                 #Euros
-        self.indOpex = 0               #Euros
+        self.indOpex = {}              #Euros
         self.dirOpex = 0               #Euros per kg H2
         self.K = 0                     #Euros
         self.costPKG = costPKG
@@ -131,12 +131,21 @@ class CO2Loc:
         
         #I only made this so verbose to make the unit conversions a bit more clear
         
-        MW = self.cap# * 1000
-        MJpa = MW * 3600 * 8000  #Converted to MJ/a
-        MJph = MJpa / 8000       #Converted to MJ/h
-        KGph = MJph / 43.1       #Converted to KG/h
+        for i in inputEnergyList:
+            MW = self.cap
+            MJpa = MW * 3600 * 8000         #Converted to MJ/a
+            MJph = MJpa / 8000              #Converted to MJ/h
+            KGph = MJph / energyTypeDict[i] #Converted to KG/h
+            indOpex =  2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4
+            self.indOpex[i] = indOpex #returns euros 
         
-        self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4  #returns euros 
+#        
+#        MW = self.cap# * 1000
+#        MJpa = MW * 3600 * 8000  #Converted to MJ/a
+#        MJph = MJpa / 8000       #Converted to MJ/h
+#        KGph = MJph / 43.1       #Converted to KG/h
+#        
+#        self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4  #returns euros 
     
     def checkMinMax(self):     #Checks to make sure plant capacity is within given bounds
                                #according to the input restrictions sheet       
@@ -208,7 +217,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         M.cape[fac]=fac.capex
         
     for loc in M.locations:
-        M.loccap[loc] = loc.K + (loc.indOpex)    #No longer using the MW cap
+        M.loccap[loc] = loc.K #+ (loc.indOpex)    #No longer using the MW cap
         M.locopex[loc] = loc.dirOpex 
         
     #Constructs cost vector from opex and carbon constraints from sources.
@@ -308,9 +317,13 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
        + (summation(model.locopen, model.loccap, index = model.locations) + summation(model.hydrouse, model.locopex, index = model.locations)) # + summation(model.locopen, model.locopex, index = M.locations) # 
+       
        for i in range(hyn):
            for j in range(locationNum):
                ob = ob + model.hydrouse[CO2LocList[j]]*model.assignments[i*locationNum + j]*costPKGMatrix[i,j]
+               
+       for i in range(locationNum):
+           ob = ob + model.locopen[i]*CO2LocList[i].indOpex[]
        return ob
 
     
@@ -341,6 +354,7 @@ TransIn     = pd.read_excel('input.xlsx', 'Transformers', index_col=None, na_val
 HubIn      = pd.read_excel('input.xlsx', 'Hubs', index_col=None, na_values=['NA'])
 ConnIn      = pd.read_excel('input.xlsx', 'Connectors', index_col=None, na_values=['NA'])
 CO2LocIn  = pd.read_excel('input.xlsx', 'CO2Locations', index_col=None, na_values=['NA'])
+EnergyTypeIn  = pd.read_excel('input.xlsx', 'EnergyTypes', index_col=None, na_values=['NA'])
 RestrIn      = pd.read_excel('input.xlsx', 'Restrictions', index_col=None, na_values=['NA'])
 
 SourceList     = []
@@ -502,6 +516,15 @@ for i in range(len(CO2LocIn.index)):                          #Checks to make su
         j = j + 1  
    
 locationNum = j
+
+#Set up the energy type density dictionary
+
+energyTypeDict = {}
+inputEnergyList = [''] * len(EnergyTypeIn.index) 
+
+for i in range(len(EnergyTypeIn.index)):
+    inputEnergyList[i] = EnergyTypeIn.loc[i, 'EnergyType']
+    energyTypeDict[EnergyTypeIn.loc[i, 'EnergyType']] = EnergyTypeIn.loc[i, 'EnergyDensity']
 
 #Calculate CO2 location properties
 
