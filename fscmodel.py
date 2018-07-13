@@ -51,13 +51,14 @@ class Sink:
             return self.name < other.name
     
 class Transformer:
-    def __init__(self, name, capex, opex, totalEff, outMin, outMax, CO2Ratio,pos):
+    def __init__(self, name, capex, opex, totalEff, outMin, outMax, specEnerg, CO2Ratio, pos):
         self.name = name
         self.capex = capex
         self.opex = opex
         self.totalEff = totalEff
         self.outMin = outMin
         self.outMax = outMax
+        self.specEnerg = specEnerg
         self.CO2Ratio = CO2Ratio
         self.inputs = {}
         self.products = {}
@@ -127,18 +128,17 @@ class CO2Loc:
         self.dirOpex = 5.190866 + (3.999796 - 5.190866)/(1 + (self.dist/2.020612)**1.534203) #returns euros/kg of H2
         self.dirOpex = self.dirOpex / 120 * 10**9          #converts to euros/PJ of fuel
         
-    def findIndOpex(self):
+    def findIndOpex(self, numb):
         
         #I only made this so verbose to make the unit conversions a bit more clear
         
-        for i in inputEnergyList:
-            MW = self.cap
-            MJpa = MW * 3600 * 8000         #Converted to MJ/a
-            MJph = MJpa / 8000              #Converted to MJ/h
-            KGph = MJph / energyTypeDict[i] #Converted to KG/h
-            indOpex =  2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4
-            self.indOpex[i] = indOpex #returns euros 
-        
+        MW = self.cap
+        MJpa = MW * 3600 * 8000         #Converted to MJ/a
+        MJph = MJpa / 8000              #Converted to MJ/h
+        KGph = MJph / (numb) #Converted to KG/h
+        indOpex =  2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4
+        self.indOpex[i] = indOpex #returns euros 
+        return indOpex
 #        
 #        MW = self.cap# * 1000
 #        MJpa = MW * 3600 * 8000  #Converted to MJ/a
@@ -286,6 +286,15 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.hubsum = Constraint(M.hubs, rule = hubcount)
 #Dealing with CO2 locations here    
 #Set maximum.
+    def assigntotal(model, loc):
+        res = 0
+        for i in range(hyn):
+            res = res + model.assignments[i*locationNum + loc.ind]
+        return res == model.locopen[loc]
+    
+    M.checksum = Constraint(M.locations, rule = assigntotal)
+    
+    
     for loc in CO2LocList:
         M.hydrouse[loc].setub(loc.capPJ)
     
@@ -322,8 +331,10 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
            for j in range(locationNum):
                ob = ob + model.hydrouse[CO2LocList[j]]*model.assignments[i*locationNum + j]*costPKGMatrix[i,j]
                
-       for i in range(locationNum):
-           ob = ob + model.locopen[i]*CO2LocList[i].indOpex[]
+       for i in range(hyn):
+           for j in range(locationNum):
+               ob = ob + model.assignments[i*locationNum + j]*specEnergMatrix[i,j]
+           
        return ob
 
     
@@ -444,6 +455,7 @@ for i in range(len(TransIn.index)):
                                  totalEff = TransIn.loc[i,'TotalEff'],
                                  outMin = TransIn.loc[i, 'OutMin'],
                                  outMax = TransIn.loc[i, 'OutMax'],
+                                 specEnerg = TransIn.loc[i, 'OutputSpecEnergy'],
                                  CO2Ratio = TransIn.loc[i, 'CO2 Kg/MJ'],
                                  pos = (TransIn.loc[i, 'X'],TransIn.loc[i, 'Y'])))
     G.add_node(TransList[i].name, pos = TransList[i].pos, shape = '8', color = 'b')
@@ -520,15 +532,6 @@ for i in range(len(CO2LocIn.index)):                          #Checks to make su
    
 locationNum = j
 
-#Set up the energy type density dictionary
-
-energyTypeDict = {}
-inputEnergyList = [''] * len(EnergyTypeIn.index) 
-
-for i in range(len(EnergyTypeIn.index)):
-    inputEnergyList[i] = EnergyTypeIn.loc[i, 'EnergyType']
-    energyTypeDict[EnergyTypeIn.loc[i, 'EnergyType']] = EnergyTypeIn.loc[i, 'EnergyDensity']
-
 #Calculate CO2 location properties
 
 
@@ -537,7 +540,7 @@ for CO2Loc in CO2LocList:
     CO2Loc.checkMinMax()
     CO2Loc.findCapex()
     CO2Loc.findDirOpex()
-    CO2Loc.findIndOpex()
+    #CO2Loc.findIndOpex()
     CO2Loc.changeCapUnit()
     
     CO2Loc.K = CO2Loc.capex * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
@@ -548,6 +551,11 @@ costPKGMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
 for Trans in H2TransList:
     for loc in CO2LocList:
         costPKGMatrix[Trans.hynum,loc.ind] = Trans.CO2Ratio * loc.costPKG
+        
+specEnergMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
+for Trans in H2TransList:
+    for loc in CO2LocList:
+        specEnergMatrix[Trans.hynum,loc.ind] = loc.findIndOpex(Trans.specEnerg)
 
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
