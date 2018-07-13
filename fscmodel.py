@@ -634,6 +634,7 @@ outdf.to_excel(writer, sheet_name='FacilityInfo')
 locdf.to_excel(writer, sheet_name='CO2LocationInfo')
 
 writer.save()
+plt.figure(figsize = (8,6))
 nx.draw(G, pos = posits, with_labels = True, node_shape = 's')
 nx.draw_networkx_edges(G, pos = posits, with_labels = True, width = wgts)
 checkModel(ConnList, EnergyList)
