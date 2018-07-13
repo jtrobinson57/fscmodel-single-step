@@ -392,6 +392,7 @@ EnergyList = FuelTypeList + DemandTypeList
 
 G = nx.DiGraph()
 posits = {}
+labelpos = {}
 
 #Initialize the connectors        
 for i in range(len(ConnIn.index)):
@@ -410,8 +411,9 @@ for i in range(len(SourceIn.index)):
                              minProd = SourceIn.loc[i,'MinProduction'],
                              maxProd = SourceIn.loc[i, 'MaxProduction'],
                              pos = (SourceIn.loc[i, 'X'],SourceIn.loc[i, 'Y'])))
-    G.add_node(SourceList[i].name)
+    G.add_node(SourceList[i].name, pos = SourceList[i].pos, shape = 's', color = 'g')
     posits[SourceList[i].name] =  SourceList[i].pos
+    labelpos[SourceList[i].name] = ((SourceIn.loc[i, 'X'],SourceIn.loc[i, 'Y'] - 15))
     
     for con in ConnList:
         if con.inp==SourceList[i].name and con.energyType==SourceList[i].energyType:
@@ -425,8 +427,9 @@ for i in range(len(SinkIn.index)):
                          opex = SinkIn.loc[i,'Opex'],
                          demand = SinkIn.loc[i,'Demand'],
                          pos = (SinkIn.loc[i, 'X'],SinkIn.loc[i, 'Y'])))
-    G.add_node(SinkList[i].name)
+    G.add_node(SinkList[i].name, pos= SinkList[i].pos, shape = 's', color = 'r')
     posits[SinkList[i].name] =  SinkList[i].pos
+    labelpos[SinkList[i].name] = (SinkIn.loc[i, 'X'],SinkIn.loc[i, 'Y'] - 15)
     
     for con in ConnList:
         if con.out==SinkList[i].name and con.energyType==SinkList[i].energyType:
@@ -443,8 +446,9 @@ for i in range(len(TransIn.index)):
                                  outMax = TransIn.loc[i, 'OutMax'],
                                  CO2Ratio = TransIn.loc[i, 'CO2 Kg/MJ'],
                                  pos = (TransIn.loc[i, 'X'],TransIn.loc[i, 'Y'])))
-    G.add_node(TransList[i].name)
+    G.add_node(TransList[i].name, pos = TransList[i].pos, shape = '8', color = 'b')
     posits[TransList[i].name] =  TransList[i].pos
+    labelpos[TransList[i].name] = (TransIn.loc[i, 'X'],TransIn.loc[i, 'Y'] - 15)
     
     outcols.append(TransList[i].name + 'Production')
     if TransIn.loc[i,'Input0'] == 'hydrogen':
@@ -489,8 +493,9 @@ for i in range(len(HubIn.index)):
                        capex = HubIn.loc[i,'Capex'],
                        opex = HubIn.loc[i,'Opex'],
                        pos = (HubIn.loc[i, 'X'],HubIn.loc[i, 'Y'])))
-    G.add_node(HubList[i].name)
+    G.add_node(HubList[i].name, pos = HubList[i].pos, shape = 'o', color = 'white')
     posits[HubList[i].name] =  HubList[i].pos
+    labelpos[HubList[i].name] = (HubIn.loc[i, 'X'],HubIn.loc[i, 'Y'] - 15)
     
     outcols.append(HubList[i].name + 'Usage')
     for con in ConnList:
@@ -499,8 +504,6 @@ for i in range(len(HubIn.index)):
         elif con.inp==HubList[i].name and con.energyType==HubList[i].energyType:
             HubList[i].outcons.append(con)
             
-for con in ConnList:
-    G.add_edge(con.inp, con.out)
     
 #Initialize the CO2 Locations
 j = 0
@@ -610,12 +613,7 @@ for loc in CO2LocList:
         locCO2dirOpexes.append(loc.costPKG)
         locindOpexes.append(loc.indOpex)
         
-wgts = []       
-for con in ConnList:
-    if model.connections[con].value > 0.000001:
-        wgts.append(model.connections[con].value/100)
-    else:
-        wgts.append(0)
+
         
 
 locdf = pd.DataFrame({'Name': locNames,
@@ -634,7 +632,23 @@ outdf.to_excel(writer, sheet_name='FacilityInfo')
 locdf.to_excel(writer, sheet_name='CO2LocationInfo')
 
 writer.save()
-plt.figure(figsize = (8,6))
+plt.figure(figsize = (15,9))
+plt.axis('off')
+wgts = []       
+for con in ConnList:
+    if model.connections[con].value > 0.000001:
+        G.add_edge(con.inp, con.out)
+        nx.draw_networkx_edges(G, pos = posits, edgelist = [(con.inp, con.out)], width = model.connections[con].value/100)
+        wgts.append(model.connections[con].value/100)
+    else:
+        G.add_edge(con.inp, con.out)
+        wgts.append(0)
+
+for node in G.nodes():
+    nx.draw_networkx_nodes(G, pos = posits, nodelist = [node], node_color = G.node[node]['color'], node_shape = G.node[node]['shape'])
+
+nx.draw_networkx_labels(G, pos = labelpos)
+plt.show()
+plt.figure(figsize = (9, 5))
 nx.draw(G, pos = posits, with_labels = True, node_shape = 's')
-nx.draw_networkx_edges(G, pos = posits, with_labels = True, width = wgts)
 checkModel(ConnList, EnergyList)
