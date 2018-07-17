@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jun  7 13:49:17 2018
-@author: j.robinson
+@author: j.robinson & s.witkin
 """
 
 from __future__ import division
@@ -128,16 +128,16 @@ class CO2Loc:
         self.dirOpex = 5.190866 + (3.999796 - 5.190866)/(1 + (self.dist/2.020612)**1.534203) #returns euros/kg of H2
         self.dirOpex = self.dirOpex / 120 * 10**9          #converts to euros/PJ of fuel
         
-    def findIndOpex(self, numb):
+    def findIndOpex(self, Tran):
         
         #I only made this so verbose to make the unit conversions a bit more clear
         
         MW = self.cap
         MJpa = MW * 3600 * 8000         #Converted to MJ/a
         MJph = MJpa / 8000              #Converted to MJ/h
-        KGph = MJph / (numb) #Converted to KG/h
+        KGph = MJph / (Tran.specEnerg) #Converted to KG/h
         indOpex =  2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4
-        self.indOpex[i] = indOpex #returns euros 
+        self.indOpex[Tran.name] = indOpex #returns euros 
         return indOpex
 #        
 #        MW = self.cap# * 1000
@@ -204,8 +204,8 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     #Amount coming into a transformer. Used to consider transformer production ratio
     M.trintotals = Var(M.trans, domain = NonNegativeReals)
     M.carbonsum = Var(domain = NonNegativeReals)
-    M.carbonsum.setub(CO2)
-    #Amount of hydrogen in MJ going into C02 locs.
+
+    #Amount of hydrogen in PJ going into C02 locs.
     M.hydrouse = Var(M.locations, domain = NonNegativeReals)
     #Whether the CO2 locations are open
     M.locopen = Var(M.locations, domain = Boolean)
@@ -217,7 +217,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         M.cape[fac]=fac.capex
         
     for loc in M.locations:
-        M.loccap[loc] = loc.K #+ (loc.indOpex)    #No longer using the MW cap
+        M.loccap[loc] = loc.K #indirect opex added later
         M.locopex[loc] = loc.dirOpex 
         
     #Constructs cost vector from opex and carbon constraints from sources.
@@ -227,6 +227,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
             M.carbon[fac] = fac.CO2
     
     
+    #Source related equations
     def sourcecount(model, source):
         return M.facilities[source] == sum(M.connections[con] for con in source.outcons)
     
@@ -265,17 +266,19 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.inputconstraint = Constraint(M.connectors, rule = inputratiorule)
     M.productconstraint = Constraint(M.connectors, rule = productratiorule)
     
-    
-    def sinkrule(model, sink):
-        return sum(M.connections[con] for con in sink.incons) == sink.demand
-    
+    #Sink related equations 
     def sinkcount(model,sink):
-        return M.facilities[sink]== sum(M.connections[con] for con in sink.incons)
+        return M.facilities[sink] == sum(M.connections[con] for con in sink.incons)
     
-    M.sinkconstraint = Constraint(M.sinks, rule = sinkrule)
+#    def sinkrule(model, sink):
+#        return sum(M.connections[con] for con in sink.incons) == sink.demand
+#    M.sinkconstraint = Constraint(M.sinks, rule = sinkrule)
+    for sink in M.sinks:
+        M.facilities[sink].setlb(sink.demand)
+    
     M.sinksum = Constraint(M.sinks, rule = sinkcount)
     
-    
+    #Hub related equations
     def hubrule(model, hub):
         return sum(M.connections[con] for con in hub.incons)==sum(M.connections[con] for con in hub.outcons)
     
@@ -284,8 +287,8 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     M.hubconstraint = Constraint(M.hubs, rule = hubrule)
     M.hubsum = Constraint(M.hubs, rule = hubcount)
-#Dealing with CO2 locations here    
-#Set maximum.
+#CO2 Location related equations  
+
     def assigntotal(model, loc):
         res = 0
         for i in range(hyn):
@@ -294,11 +297,11 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     M.checksum = Constraint(M.locations, rule = assigntotal)
     
-    
+    #Set maximum.
     for loc in CO2LocList:
         M.hydrouse[loc].setub(loc.capPJ)
     
-#Sum equation that adds up numbers **to the hydrogen In connector.
+    #Sum equation that adds up numbers **to the hydrogen In connector.
     def hydrosum(model, hy):
         for con in hy.incons:
             if con.energyType=='hydrogen':
@@ -318,10 +321,9 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         return M.facilities[fac] - M.isopen[fac]*M.facilities[fac] <= 0
     
     M.checkopen = Constraint(M.stations, rule = binrule)
-#    print(M.facilities[TransList[1]].value)
 
     M.carbonset = Constraint(expr = summation(M.facilities, M.carbon, index = M.sources) == M.carbonsum)
-#    M.Co2limit = Constraint(expr = M.carbonsum <= CO2)  
+    M.carbonsum.setub(CO2)
     
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
@@ -336,8 +338,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
                ob = ob + model.assignments[i*locationNum + j]*specEnergMatrix[i,j]
            
        return ob
-
-    
+ 
     M.Obj = Objective(rule = objrule, sense = minimize)
             
     return M
@@ -345,7 +346,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
 def opti(model):
     opt = SolverFactory('gurobi', tee = True)
     results = opt.solve(model, tee = True)
-    #print(model.display())
+#    print(model.display())
     return results
 
 
@@ -555,7 +556,7 @@ for Trans in H2TransList:
 specEnergMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
 for Trans in H2TransList:
     for loc in CO2LocList:
-        specEnergMatrix[Trans.hynum,loc.ind] = loc.findIndOpex(Trans.specEnerg)
+        specEnergMatrix[Trans.hynum,loc.ind] = loc.findIndOpex(Trans)
 
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
@@ -619,7 +620,7 @@ for loc in CO2LocList:
         locKs.append(loc.K)
         locH2dirOpexes.append(loc.dirOpex)
         locCO2dirOpexes.append(loc.costPKG)
-        locindOpexes.append(loc.indOpex)
+        locindOpexes.append(loc.indOpex[H2TransList[n].name])
         
 
         
@@ -641,16 +642,13 @@ locdf.to_excel(writer, sheet_name='CO2LocationInfo')
 
 writer.save()
 plt.figure(figsize = (15,9))
-plt.axis('off')
-wgts = []       
+plt.axis('off') 
 for con in ConnList:
     if model.connections[con].value > 0.000001:
         G.add_edge(con.inp, con.out)
         nx.draw_networkx_edges(G, pos = posits, edgelist = [(con.inp, con.out)], width = model.connections[con].value/100)
-        wgts.append(model.connections[con].value/100)
     else:
         G.add_edge(con.inp, con.out)
-        wgts.append(0)
 
 for node in G.nodes():
     nx.draw_networkx_nodes(G, pos = posits, nodelist = [node], node_color = G.node[node]['color'], node_shape = G.node[node]['shape'])
