@@ -646,7 +646,7 @@ plt.axis('off')
 for con in ConnList:
     if model.connections[con].value > 0.000001:
         G.add_edge(con.inp, con.out)
-        nx.draw_networkx_edges(G, pos = posits, edgelist = [(con.inp, con.out)], width = model.connections[con].value/100)
+        nx.draw_networkx_edges(G, pos = posits, edgelist = [(con.inp, con.out)], width = model.connections[con].value/60)
     else:
         G.add_edge(con.inp, con.out)
 
