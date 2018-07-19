@@ -366,7 +366,7 @@ TransIn     = pd.read_excel('input.xlsx', 'Transformers', index_col=None, na_val
 HubIn      = pd.read_excel('input.xlsx', 'Hubs', index_col=None, na_values=['NA'])
 ConnIn      = pd.read_excel('input.xlsx', 'Connectors', index_col=None, na_values=['NA'])
 CO2LocIn  = pd.read_excel('input.xlsx', 'CO2Locations', index_col=None, na_values=['NA'])
-EnergyTypeIn  = pd.read_excel('input.xlsx', 'EnergyTypes', index_col=None, na_values=['NA'])
+#EnergyTypeIn  = pd.read_excel('input.xlsx', 'EnergyTypes', index_col=None, na_values=['NA'])
 RestrIn      = pd.read_excel('input.xlsx', 'Restrictions', index_col=None, na_values=['NA'])
 
 SourceList     = []
