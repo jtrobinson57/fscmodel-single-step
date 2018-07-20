@@ -169,16 +169,17 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M = ConcreteModel()
     
     M.connectors = Set(initialize = ConnList)
-    M.sources = Set(initialize = SourceList)
-    M.sinks = Set(initialize = SinkList)
-    M.trans = Set(initialize = TransList)
-    M.hytrans = Set(initialize = H2TransList)
-    M.hubs = Set(initialize = HubList)
-    M.stations = Set(initialize = SourceList + SinkList + TransList + HubList)
-    M.locations = Set(initialize = CO2LocList)
+    M.sources    = Set(initialize = SourceList)
+    M.sinks      = Set(initialize = SinkList)
+    M.trans      = Set(initialize = TransList)
+    M.hytrans    = Set(initialize = H2TransList)
+    M.hubs       = Set(initialize = HubList)
+    M.stations   = Set(initialize = SourceList + SinkList + TransList + HubList)
+    M.locations  = Set(initialize = CO2LocList)
 
     
-    
+    #This chunk here creates a dictionary called letsinit in which each CO2 location corresponds to a
+    #list of the indexes of M.assignments which control for that location. It is used in the SOS constraint (sososo)
     letsinit = {}
     for loc in M.locations:
         iii = []
@@ -228,28 +229,33 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     
     #Source related equations
+    #The amount of fuel coming from a source equals the total amount of fuel going through the connections which come out of that source.
     def sourcecount(model, source):
         return M.facilities[source] == sum(M.connections[con] for con in source.outcons)
     
     M.sourcesum = Constraint(M.sources, rule = sourcecount)
-    
+    #Set maximum and minimum on the variables.
     for source in M.sources:
         M.facilities[source].setub(source.maxProd)
         M.facilities[source].setlb(source.minProd)
         
     #Transformer related equations.
+    #The total energy leaving a transformer equals the total efficiency times the total coming into the transformer.
     def transrule(model, tra):
         return M.facilities[tra] == tra.totalEff * M.trintotals[tra]
     
+    #The total fuel entering a transformer equals the sum of the fuel in the connections which lead to that transformer.
     def transcount(model, tra):
         return M.trintotals[tra] ==  sum(M.connections[con] for con in tra.incons)
     
+    #For energy types that enter the transformer, the amount that comes in (through their specific connection) is equal to the input ratio times the total transformer input.
     def inputratiorule(model, con):
         for tra in TransList:
             if con in tra.incons:
                 return tra.inputs[con.energyType] * M.trintotals[tra] == M.connections[con]
         return Constraint.Skip
      
+    #For energy types that leave the transformer, the amount leaving (through the specific connection) is exactly equal to the production ration times the total transformer output.
     def productratiorule(model, con):
         for tra in TransList:
             if con in tra.outcons:
@@ -266,29 +272,35 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.inputconstraint = Constraint(M.connectors, rule = inputratiorule)
     M.productconstraint = Constraint(M.connectors, rule = productratiorule)
     
-    #Sink related equations 
+    #Sink related equations
+    #The total amount that enters a sink (to satisfy demand) equals the sum of all connections that enter that sink.
     def sinkcount(model,sink):
         return M.facilities[sink] == sum(M.connections[con] for con in sink.incons)
     
 #    def sinkrule(model, sink):
 #        return sum(M.connections[con] for con in sink.incons) == sink.demand
 #    M.sinkconstraint = Constraint(M.sinks, rule = sinkrule)
+        
+    #The amount that reaches the sink must be greater than or equal to the demand. In interest of cost, this will almost always equal it.
     for sink in M.sinks:
         M.facilities[sink].setlb(sink.demand)
     
     M.sinksum = Constraint(M.sinks, rule = sinkcount)
     
     #Hub related equations
+    #The total amount going into a hub must equal the amount which leaves it. No created energy.
     def hubrule(model, hub):
         return sum(M.connections[con] for con in hub.incons)==sum(M.connections[con] for con in hub.outcons)
     
+    #counts up the amount flowing through a hub, so that it can be displayed.
     def hubcount(model,hub):
         return M.facilities[hub] == sum(M.connections[con] for con in hub.incons)
     
     M.hubconstraint = Constraint(M.hubs, rule = hubrule)
     M.hubsum = Constraint(M.hubs, rule = hubcount)
-#CO2 Location related equations  
-
+    
+    #CO2 Location related equations  
+    #If a location is not being used (locopen[loc] = 0), then it cannot be assigned to any transformer!
     def assigntotal(model, loc):
         res = 0
         for i in range(hyn):
@@ -301,19 +313,22 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     for loc in CO2LocList:
         M.hydrouse[loc].setub(loc.capPJ)
     
-    #Sum equation that adds up numbers **to the hydrogen In connector.
+    #For each hydrogen transformer, Sum equation that adds up the hydrogen being demanded from the CO2 locations
+    #assigned to that transformer, and demands it from the connector that brings hydrogen into that transformer.
     def hydrosum(model, hy):
         for con in hy.incons:
             if con.energyType=='hydrogen':
                 return sum(model.assignments[hy.hynum*locationNum + loc.ind] * model.hydrouse[loc] for loc in CO2LocList) >= M.connections[con]
     
     M.hopethisworks = Constraint(M.hytrans, rule = hydrosum)
-
+    
+    #Turns locopen on and off depending on whether the location is being used. 
     def binruleloc(model, loc):
         return model.hydrouse[loc] - model.locopen[loc]*model.hydrouse[loc] <= 0
     
     M.checklocopen = Constraint(M.locations, rule = binruleloc)
-
+    
+    #This is the SOS constraint, which says that a location can be assigned to only one transformer process.
     M.sososo = SOSConstraint(M.locations, var = M.assignments, index = M.letsgo, sos = 1 )
     
     #Quadratic constraint that turns isopen on and off
