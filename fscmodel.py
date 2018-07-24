@@ -51,7 +51,7 @@ class Sink:
             return self.name < other.name
     
 class Transformer:
-    def __init__(self, name, capex, opex, totalEff, outMin, outMax, specEnerg, CO2Ratio, pos):
+    def __init__(self, name, capex, opex, totalEff, outMin, outMax, specEnerg, CO2Ratio, process, pos):
         self.name = name
         self.capex = capex
         self.opex = opex
@@ -60,6 +60,7 @@ class Transformer:
         self.outMax = outMax
         self.specEnerg = specEnerg
         self.CO2Ratio = CO2Ratio
+        self.process = process
         self.inputs = {}
         self.products = {}
         self.incons = []
@@ -112,10 +113,10 @@ class CO2Loc:
         self.dist = dist / 100.0       #Hundreds of km
         self.cap = cap #/ 1000           #MW
         self.capPJ = 0
-        self.capex = 0                 #Euros
+        self.capex = {}                 #Euros
         self.indOpex = {}              #Euros
         self.dirOpex = 0               #Euros per kg H2
-        self.K = 0                     #Euros
+        self.K ={}                     #Euros
         self.costPKG = costPKG
         self.maxCO2 = maxCO2
         
@@ -123,26 +124,26 @@ class CO2Loc:
         
         #Calculate capex for PtF Meth
         
-#        methCap = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000)) #In euros/KW
-#        methCap = methCap * 1000 * self.cap                               #Convert to euros
-#        self.capex['Meth'] = methCap
+        methCap = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000)) #In euros/KW
+        methCap = methCap * 1000 * self.cap                               #Convert to euros
+        self.capex['Meth'] = methCap
         
         #Calculate capex for MtG
         
-#        MtGCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*x))
-#        MtGCap = MtgCap * 1000 * self.cap
-#        self.capex['MtG'] = MtGCap
+        MtGCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*x))
+        MtGCap = MtGCap * 1000 * self.cap
+        self.capex['MtG'] = MtGCap
         
         #Calculate capex for FT
-#        
-#        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*x))
-#        FTCap = FTCap * 1000 * self.cap
-#        self.capex['FT'] = FTCap
+        
+        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*x))
+        FTCap = FTCap * 1000 * self.cap
+        self.capex['FT'] = FTCap
         
         #Old capex calculatiomn
         
-        self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000))    #returns euro/KW
-        self.capex = self.capex * 1000 * self.cap                        #returns euros
+#        self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000))    #returns euro/KW
+#        self.capex = self.capex * 1000 * self.cap                        #returns euros
         
     def findDirOpex(self):
         
@@ -325,8 +326,9 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.checksum = Constraint(M.locations, rule = assigntotal)
     
     #Set maximum.
+    
     for loc in CO2LocList:
-        M.hydrouse[loc].setub(200)
+        M.hydrouse[loc].setub(capacMax*2)
         
     M.maxconstrs = Constraint(Any)
     i = 0
@@ -334,9 +336,6 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         for loc in M.locations:
             M.maxconstrs[i] = M.assignments[hy.hynum*locationNum + loc.ind] * M.hydrouse[loc] <= capacMaxMatrix[hy.hynum, loc.ind]
             i = i + 1
-    
-        
-    
     
     #For each hydrogen transformer, Sum equation that adds up the hydrogen being demanded from the CO2 locations
     #assigned to that transformer, and demands it from the connector that brings hydrogen into that transformer.
@@ -367,7 +366,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
-       + (summation(model.locopen, model.loccap, index = model.locations) + summation(model.hydrouse, model.locopex, index = model.locations)) # + summation(model.locopen, model.locopex, index = M.locations) # 
+       + summation(model.hydrouse, model.locopex, index = model.locations) + summation(model.locopen, model.loccap, index = model.locations)# + summation(model.locopen, model.locopex, index = M.locations) # 
        
        for i in range(hyn):
            for j in range(locationNum):
@@ -498,6 +497,7 @@ for i in range(len(TransIn.index)):
                                  outMax = TransIn.loc[i, 'OutMax'],
                                  specEnerg = TransIn.loc[i, 'OutputSpecEnergy'],
                                  CO2Ratio = TransIn.loc[i, 'CO2 Kg/MJ'],
+                                 process = TransIn.loc[i, 'H2 Process'],
                                  pos = (TransIn.loc[i, 'X'],TransIn.loc[i, 'Y'])))
     G.add_node(TransList[i].name, pos = TransList[i].pos, shape = '8', color = 'b')
     posits[TransList[i].name] =  TransList[i].pos
@@ -576,7 +576,7 @@ locationNum = j
 
 #Calculate CO2 location properties
 
-
+capacMax = maxCO2PlantSize * 3600 * 8000 / 1000000000
 for CO2Loc in CO2LocList:
     
     CO2Loc.checkMinMax()
@@ -585,7 +585,8 @@ for CO2Loc in CO2LocList:
     #CO2Loc.findIndOpex()
     CO2Loc.changeCapUnit()
     
-    CO2Loc.K = CO2Loc.capex * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
+    for key in CO2Loc.capex:
+        CO2Loc.K[key] = CO2Loc.capex[key] * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
 
 checkModel(ConnList, EnergyList)
 
@@ -600,10 +601,10 @@ for Trans in H2TransList:
         specEnergMatrix[Trans.hynum,loc.ind] = loc.findIndOpex(Trans)
         
 capacMaxMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
+
 for Trans in H2TransList:
     for loc in CO2LocList:
         capacMaxMatrix[Trans.hynum,loc.ind] = (Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9
-        capacMax = maxCO2PlantSize * 3600 * 8000 / 1000000000
         if capacMaxMatrix[Trans.hynum,loc.ind] > capacMax:
             capacMaxMatrix[Trans.hynum,loc.ind] = capacMax
 
