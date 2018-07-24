@@ -112,7 +112,7 @@ class CO2Loc:
         self.dist = dist / 100.0       #Hundreds of km
         self.cap = cap #/ 1000           #MW
         self.capPJ = 0
-        self.capex = {}                 #Euros
+        self.capex = 0                 #Euros
         self.indOpex = {}              #Euros
         self.dirOpex = 0               #Euros per kg H2
         self.K = 0                     #Euros
@@ -324,7 +324,15 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     #Set maximum.
     for loc in CO2LocList:
-        M.hydrouse[loc].setub(loc.capPJ)
+        M.hydrouse[loc].setub(200)
+        
+    M.maxconstrs = Constraint(Any)
+    i = 0
+    for hy in M.hytrans:
+        for loc in M.locations:
+            M.maxconstrs[i] = M.assignments[hy.hynum*locationNum + loc.ind] * M.hydrouse[loc] <= capacMaxMatrix[hy.hynum, loc.ind]
+            i = i + 1
+    
         
     
     
