@@ -112,7 +112,7 @@ class CO2Loc:
         self.dist = dist / 100.0       #Hundreds of km
         self.cap = cap #/ 1000           #MW
         self.capPJ = 0
-        self.capex = {}                 #Euros
+        self.capex = 0                 #Euros
         self.indOpex = {}              #Euros
         self.dirOpex = 0               #Euros per kg H2
         self.K = 0                     #Euros
@@ -125,17 +125,19 @@ class CO2Loc:
         
 #        methCap = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000)) #In euros/KW
 #        methCap = methCap * 1000 * self.cap                               #Convert to euros
-        
+#        self.capex['Meth'] = methCap
         
         #Calculate capex for MtG
         
-#        MtgCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*x))
-#        MtgCap = MtgCap * 1000 * self.cap
+#        MtGCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*x))
+#        MtGCap = MtgCap * 1000 * self.cap
+#        self.capex['MtG'] = MtGCap
         
         #Calculate capex for FT
 #        
 #        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*x))
 #        FTCap = FTCap * 1000 * self.cap
+#        self.capex['FT'] = FTCap
         
         #Old capex calculatiomn
         
