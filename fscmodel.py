@@ -105,20 +105,39 @@ class Connection:
         return "Connection:" + self.name + ", " + self.energyType
 
 class CO2Loc:
-    def __init__(self,name,ind,postal,dist,cap,costPKG):
+    def __init__(self,name,ind,postal,dist,cap,costPKG,maxCO2):
         self.name = name
         self.ind = ind
         self.postal = postal
         self.dist = dist / 100.0       #Hundreds of km
         self.cap = cap #/ 1000           #MW
         self.capPJ = 0
-        self.capex = 0                 #Euros
+        self.capex = {}                 #Euros
         self.indOpex = {}              #Euros
         self.dirOpex = 0               #Euros per kg H2
         self.K = 0                     #Euros
         self.costPKG = costPKG
+        self.maxCO2 = maxCO2
         
     def findCapex(self):
+        
+        #Calculate capex for PtF Meth
+        
+#        methCap = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000)) #In euros/KW
+#        methCap = methCap * 1000 * self.cap                               #Convert to euros
+        
+        
+        #Calculate capex for MtG
+        
+#        MtgCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*x))
+#        MtgCap = MtgCap * 1000 * self.cap
+        
+        #Calculate capex for FT
+#        
+#        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*x))
+#        FTCap = FTCap * 1000 * self.cap
+        
+        #Old capex calculatiomn
         
         self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000))    #returns euro/KW
         self.capex = self.capex * 1000 * self.cap                        #returns euros
@@ -127,7 +146,7 @@ class CO2Loc:
         
         self.dirOpex = 5.190866 + (3.999796 - 5.190866)/(1 + (self.dist/2.020612)**1.534203) #returns euros/kg of H2
         self.dirOpex = self.dirOpex / 120 * 10**9          #converts to euros/PJ of fuel
-        
+    
     def findIndOpex(self, Tran):
         
         #I only made this so verbose to make the unit conversions a bit more clear
@@ -139,13 +158,7 @@ class CO2Loc:
         indOpex =  2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4
         self.indOpex[Tran.name] = indOpex #returns euros 
         return indOpex
-#        
-#        MW = self.cap# * 1000
-#        MJpa = MW * 3600 * 8000  #Converted to MJ/a
-#        MJph = MJpa / 8000       #Converted to MJ/h
-#        KGph = MJph / 43.1       #Converted to KG/h
-#        
-#        self.indOpex = 2.13 * ((KGph)**0.242) * 4 * (8000/24) * 37.32 * 4  #returns euros 
+
     
     def checkMinMax(self):     #Checks to make sure plant capacity is within given bounds
                                #according to the input restrictions sheet       
@@ -312,6 +325,8 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     #Set maximum.
     for loc in CO2LocList:
         M.hydrouse[loc].setub(loc.capPJ)
+        
+    
     
     #For each hydrogen transformer, Sum equation that adds up the hydrogen being demanded from the CO2 locations
     #assigned to that transformer, and demands it from the connector that brings hydrogen into that transformer.
@@ -543,7 +558,8 @@ for i in range(len(CO2LocIn.index)):                          #Checks to make su
                                  postal = CO2LocIn.loc[i, 'PostalCode'],  #Are checked below, during the calculation
                                  dist = CO2LocIn.loc[i, 'Spalte2'],       #of CO2 location properties by checkMinMax()
                                  cap = CO2LocIn.loc[i, 'Plant size [MW]'],
-                                 costPKG = CO2LocIn.loc[i, 'CO2 Cost pkg']))
+                                 costPKG = CO2LocIn.loc[i, 'CO2 Cost pkg'],
+                                 maxCO2 = CO2LocIn.loc[i, 'TotalQuantity']))
         j = j + 1  
    
 locationNum = j
@@ -572,6 +588,14 @@ specEnergMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
 for Trans in H2TransList:
     for loc in CO2LocList:
         specEnergMatrix[Trans.hynum,loc.ind] = loc.findIndOpex(Trans)
+        
+capacMaxMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
+for Trans in H2TransList:
+    for loc in CO2LocList:
+        capacMaxMatrix[Trans.hynum,loc.ind] = (Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9
+        capacMax = maxCO2PlantSize * 3600 * 8000 / 1000000000
+        if capacMaxMatrix[Trans.hynum,loc.ind] > capacMax:
+            capacMaxMatrix[Trans.hynum,loc.ind] = capacMax
 
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
@@ -618,6 +642,8 @@ locKs = []
 locH2dirOpexes = []
 locCO2dirOpexes = []
 locindOpexes = []
+locH2Costs = []
+locCO2Costs = []
 
 for loc in CO2LocList:
     if model.locopen[loc].value > 0.0000001:
@@ -629,16 +655,15 @@ for loc in CO2LocList:
                 n = j
                 break
             
-        procName = H2TransList[n].name
+        procName = H2TransList[int(n)].name
         locProcs.append(procName)
         locDists.append(loc.dist)
         locKs.append(loc.K)
         locH2dirOpexes.append(loc.dirOpex)
         locCO2dirOpexes.append(loc.costPKG)
-        locindOpexes.append(loc.indOpex[H2TransList[n].name])
-        
-
-        
+        locindOpexes.append(loc.indOpex[procName])
+        locH2Costs.append(loc.dirOpex * model.hydrouse[loc].value)
+        locCO2Costs.append(model.hydrouse[loc].value * costPKGMatrix[int(n),loc.ind])
 
 locdf = pd.DataFrame({'Name': locNames,
                       'Postal Code': locPosts,
@@ -646,9 +671,11 @@ locdf = pd.DataFrame({'Name': locNames,
                       'Process Used': locProcs,
                       'Distance' : locDists,
                       'K Value' : locKs,
-                      'H2 Opex' : locH2dirOpexes,
-                      'CO2 Opex' : locCO2dirOpexes,
-                      'Indirect Opex' : locindOpexes})    
+                      'H2 Opex (per unit)' : locH2dirOpexes,
+                      'H2 Total Cost' : locH2Costs,
+                      'CO2 Opex (per unit)' : locCO2dirOpexes,
+                      'CO2 Total Cost' : locCO2Costs,
+                      'Indirect Opex (total)' : locindOpexes})    
 
 writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
     
