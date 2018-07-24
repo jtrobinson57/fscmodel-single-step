@@ -326,7 +326,15 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     #Set maximum.
     for loc in CO2LocList:
-        M.hydrouse[loc].setub(loc.capPJ)
+        M.hydrouse[loc].setub(200)
+        
+    M.maxconstrs = Constraint(Any)
+    i = 0
+    for hy in M.hytrans:
+        for loc in M.locations:
+            M.maxconstrs[i] = M.assignments[hy.hynum*locationNum + loc.ind] * M.hydrouse[loc] <= capacMaxMatrix[hy.hynum, loc.ind]
+            i = i + 1
+    
         
     
     
