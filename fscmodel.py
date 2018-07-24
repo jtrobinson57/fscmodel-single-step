@@ -168,9 +168,8 @@ class CO2Loc:
         if self.cap > maxCO2PlantSize:     #Admittedly, this function only checks maxes, mins are checked below
             self.cap = maxCO2PlantSize     #at the point of read-in
     
-    def changeCapUnit(self):
-        
-        self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to PJ/yr for a single year
+#    def changeCapUnit(self):
+#        self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to PJ/yr for a single year
     
     def __lt__(self,other):
         if isinstance(other, Connection):
@@ -208,7 +207,6 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     M.c = Param(M.stations, mutable = True)
     M.carbon = Param(M.sources, mutable = True)
     M.cape = Param(M.stations, mutable = True)
-    M.loccap = Param(M.locations, mutable = True)
     M.locopex = Param(M.locations, mutable = True)
     M.CO2costs = Param(M.locations, mutable = True)
     
@@ -234,7 +232,6 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
         M.cape[fac]=fac.capex
         
     for loc in M.locations:
-        M.loccap[loc] = loc.K #indirect opex added later
         M.locopex[loc] = loc.dirOpex 
         
     #Constructs cost vector from opex and carbon constraints from sources.
@@ -366,8 +363,12 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     def objrule(model):
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
-       + summation(model.hydrouse, model.locopex, index = model.locations) + summation(model.locopen, model.loccap, index = model.locations)# + summation(model.locopen, model.locopex, index = M.locations) # 
+       + summation(model.hydrouse, model.locopex, index = model.locations)
        
+       for loc in M.locations:
+           for hy in M.hytrans:
+               ob = ob + model.assignments[hy.hynum*locationNum + loc.ind]*loc.K[hy.process]
+               
        for i in range(hyn):
            for j in range(locationNum):
                ob = ob + model.hydrouse[CO2LocList[j]]*model.assignments[i*locationNum + j]*costPKGMatrix[i,j]
@@ -583,7 +584,7 @@ for CO2Loc in CO2LocList:
     CO2Loc.findCapex()
     CO2Loc.findDirOpex()
     #CO2Loc.findIndOpex()
-    CO2Loc.changeCapUnit()
+    #CO2Loc.changeCapUnit()
     
     for key in CO2Loc.capex:
         CO2Loc.K[key] = CO2Loc.capex[key] * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
