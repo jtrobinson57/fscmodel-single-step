@@ -170,8 +170,8 @@ class CO2Loc:
         if self.cap > maxCO2PlantSize:     #Admittedly, this function only checks maxes, mins are checked below
             self.cap = maxCO2PlantSize     #at the point of read-in
     
-#    def changeCapUnit(self):
-#        self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to PJ/yr for a single year
+    def changeCapUnit(self):
+        self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to PJ/yr for a single year
     
     def __lt__(self,other):
         if isinstance(other, Connection):
@@ -326,6 +326,9 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     
     #Set maximum.
     
+#    for loc in CO2LocList:
+#        M.hydrouse[loc].setub(loc.capPJ)
+    
     for loc in CO2LocList:
         M.hydrouse[loc].setub(capacMax*2)
         
@@ -385,8 +388,16 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
             
     return M
 
-def opti(model):
+def opti(model,RestrIn):
     opt = SolverFactory('gurobi', tee = True)
+    
+    opt.options['MIPGap'] = RestrIn.loc[0, 'MIPGap']
+    if (RestrIn.loc[0,'TimeLimit']) > 0:
+        opt.options['TimeLimit'] = RestrIn.loc[0,'TimeLimit']             #Setting this value in the input to -1 will remove any time limit
+    
+    if (RestrIn.loc[0,'ImproveStartTime']) > 0:
+        opt.options['ImproveStartTime'] = RestrIn.loc[0,'ImproveStartTime']
+    
     results = opt.solve(model, tee = True)
 #    print(model.display())
     return results
@@ -586,7 +597,7 @@ for CO2Loc in CO2LocList:
     CO2Loc.findCapex()
     CO2Loc.findDirOpex()
     #CO2Loc.findIndOpex()
-    #CO2Loc.changeCapUnit()
+    CO2Loc.changeCapUnit()
     
     for key in CO2Loc.capex:
         CO2Loc.K[key] = CO2Loc.capex[key] * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
@@ -613,7 +624,7 @@ for Trans in H2TransList:
 
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
-results = opti(model)
+results = opti(model,RestrIn)
 #
 #for loc in CO2LocList:
 #    if model.locopen[loc].value > 10**-12:
@@ -634,6 +645,7 @@ results = opti(model)
 outdf = pd.DataFrame(np.zeros((1,len(outcols))), columns = outcols)
 outdf.at[0, 'Total Cost'] = model.Obj()
 outdf.at[0, 'CO2'] = model.carbonsum.value
+#outdf.at[0, 'MIPGap'] = model.MIPGap
 
 for fac in model.stations:
     if isinstance(fac, Source):
