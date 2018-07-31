@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import math
 
-input_file = 'input_BSZ2030.xlsx'      #This is the name of the file being read in
-
+input_file = 'input_BAT2030.xlsx'      #This is the name of the file being read in
+ 
 class Source:
     def __init__(self,name,energyType,capex,opex,CO2,minProd,maxProd,pos):
         self.name = name
@@ -478,7 +478,7 @@ for i in range(len(SourceIn.index)):
                              pos = (SourceIn.loc[i, 'X'],SourceIn.loc[i, 'Y'])))
     G.add_node(SourceList[i].name, pos = SourceList[i].pos, shape = 's', color = 'g')
     posits[SourceList[i].name] =  SourceList[i].pos
-    labelpos[SourceList[i].name] = ((SourceIn.loc[i, 'X'],SourceIn.loc[i, 'Y'] - 15))
+    labelpos[SourceList[i].name] = ((SourceIn.loc[i, 'X'],SourceIn.loc[i, 'Y'] - 10))
     
     for con in ConnList:
         if con.inp==SourceList[i].name and con.energyType==SourceList[i].energyType:
@@ -494,7 +494,7 @@ for i in range(len(SinkIn.index)):
                          pos = (SinkIn.loc[i, 'X'],SinkIn.loc[i, 'Y'])))
     G.add_node(SinkList[i].name, pos= SinkList[i].pos, shape = 's', color = 'r')
     posits[SinkList[i].name] =  SinkList[i].pos
-    labelpos[SinkList[i].name] = (SinkIn.loc[i, 'X'],SinkIn.loc[i, 'Y'] - 15)
+    labelpos[SinkList[i].name] = (SinkIn.loc[i, 'X'],SinkIn.loc[i, 'Y'] - 10)
     
     for con in ConnList:
         if con.out==SinkList[i].name and con.energyType==SinkList[i].energyType:
@@ -515,7 +515,7 @@ for i in range(len(TransIn.index)):
                                  pos = (TransIn.loc[i, 'X'],TransIn.loc[i, 'Y'])))
     G.add_node(TransList[i].name, pos = TransList[i].pos, shape = '8', color = 'b')
     posits[TransList[i].name] =  TransList[i].pos
-    labelpos[TransList[i].name] = (TransIn.loc[i, 'X'],TransIn.loc[i, 'Y'] - 15)
+    labelpos[TransList[i].name] = (TransIn.loc[i, 'X'],TransIn.loc[i, 'Y'] - 10)
     
     outcols.append(TransList[i].name + 'Production')
     if TransIn.loc[i,'Input0'] == 'hydrogen':
@@ -562,7 +562,7 @@ for i in range(len(HubIn.index)):
                        pos = (HubIn.loc[i, 'X'],HubIn.loc[i, 'Y'])))
     G.add_node(HubList[i].name, pos = HubList[i].pos, shape = 'o', color = 'white')
     posits[HubList[i].name] =  HubList[i].pos
-    labelpos[HubList[i].name] = (HubIn.loc[i, 'X'],HubIn.loc[i, 'Y'] - 15)
+    labelpos[HubList[i].name] = (HubIn.loc[i, 'X'],HubIn.loc[i, 'Y'] - 10)
     
     outcols.append(HubList[i].name + 'Usage')
     for con in ConnList:
@@ -718,10 +718,10 @@ for con in ConnList:
     else:
         G.add_edge(con.inp, con.out)
 
+nx.draw_networkx_labels(G, pos = labelpos)
 for node in G.nodes():
     nx.draw_networkx_nodes(G, pos = posits, nodelist = [node], node_color = G.node[node]['color'], node_shape = G.node[node]['shape'])
 
-nx.draw_networkx_labels(G, pos = labelpos)
 plt.show()
 plt.figure(figsize = (9, 5))
 nx.draw(G, pos = posits, with_labels = True, node_shape = 's')
