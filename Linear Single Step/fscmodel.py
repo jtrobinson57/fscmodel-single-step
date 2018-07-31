@@ -10,9 +10,10 @@ from pyomo.opt import SolverFactory
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import networkx as nx
 
 class Source:
-    def __init__(self,name,energyType,capex,opex,CO2,minProd,maxProd):
+    def __init__(self,name,energyType,capex,opex,CO2,minProd,maxProd,pos):
         self.name = name
         self.energyType = energyType
         self.capex = capex
@@ -21,6 +22,7 @@ class Source:
         self.outcons = []
         self.minProd = minProd
         self.maxProd = maxProd
+        self.pos = pos
     
     def __str__(self):
         return "Source:" + self.name + ", " + self.energyType
@@ -31,13 +33,14 @@ class Source:
 
 
 class Sink:
-    def __init__(self,name,capex,opex,energyType,demand):
+    def __init__(self,name,capex,opex,energyType,demand,pos):
         self.name = name
         self.energyType = energyType
         self.capex = capex
         self.opex = opex
         self.demand = demand
         self.incons = []
+        self.pos = pos
         
     def __str__(self):
         return "Sink:" + self.name + ", " + self.energyType
@@ -47,7 +50,7 @@ class Sink:
             return self.name < other.name
     
 class Transformer:
-    def __init__(self, name, capex, opex, totalEff, outMin, outMax):
+    def __init__(self, name, capex, opex, totalEff, outMin, outMax,pos):
         self.name = name
         self.capex = capex
         self.opex = opex
@@ -58,6 +61,7 @@ class Transformer:
         self.products = {}
         self.incons = []
         self.outcons = []
+        self.pos = pos
     
     def __str__(self):
         return "Transformer:" + self.name
@@ -67,13 +71,14 @@ class Transformer:
             return self.name < other.name
         
 class Hub:
-    def __init__(self,name,energyType,capex=0,opex=0):
+    def __init__(self,name,energyType,capex,opex,pos):
         self.name = name
         self.energyType = energyType
         self.capex = capex
         self.opex = opex
         self.incons = []
         self.outcons = []
+        self.pos = pos
     
     def __str__(self):
         return "Hub:" + self.name + ", " + self.energyType
@@ -216,7 +221,9 @@ def checkModel(ConnList, entypes):
         if con.energyType not in entypes:
             raise ValueError(str(con) + ' has an unrecognized energy type.')
     
-        
+    for Source in SourceList:
+       if not Source.outcons:
+           print('\nWARNING: ' + Source.name + ' has empty out connections, so it probably is not being used. Would you like to check that?' + '\n')   
     #What more can be added?
     return None
 
@@ -254,6 +261,10 @@ for i in range(len(SinkIn.index)):
 #All energy types 
 EnergyList = FuelTypeList + DemandTypeList
 
+G = nx.DiGraph()
+posits = {}
+labelpos = {}
+
 #Initialize the connectors        
 for i in range(len(ConnIn.index)):
     ConnList.append(Connection(name = ConnIn.loc[i,'Name'],
@@ -269,7 +280,11 @@ for i in range(len(SourceIn.index)):
                              opex = SourceIn.loc[i,'Opex'], 
                              CO2 = SourceIn.loc[i,'CO2'],
                              minProd = SourceIn.loc[i,'MinProduction'],
-                             maxProd = SourceIn.loc[i, 'MaxProduction']))
+                             maxProd = SourceIn.loc[i, 'MaxProduction'],
+                             pos = (SourceIn.loc[i, 'X'],SourceIn.loc[i, 'Y'])))
+    G.add_node(SourceList[i].name, pos = SourceList[i].pos, shape = 's', color = 'g')
+    posits[SourceList[i].name] =  SourceList[i].pos
+    labelpos[SourceList[i].name] = ((SourceIn.loc[i, 'X'],SourceIn.loc[i, 'Y'] - 10))
     
     for con in ConnList:
         if con.inp==SourceList[i].name and con.energyType==SourceList[i].energyType:
@@ -281,7 +296,11 @@ for i in range(len(SinkIn.index)):
                          energyType = SinkIn.loc[i,'EnergyType'],
                          capex = SinkIn.loc[i,'Capex'],
                          opex = SinkIn.loc[i,'Opex'],
-                         demand = SinkIn.loc[i,'Demand']))
+                         demand = SinkIn.loc[i,'Demand'],
+                         pos = (SinkIn.loc[i, 'X'],SinkIn.loc[i, 'Y'])))
+    G.add_node(SinkList[i].name, pos= SinkList[i].pos, shape = 's', color = 'r')
+    posits[SinkList[i].name] =  SinkList[i].pos
+    labelpos[SinkList[i].name] = (SinkIn.loc[i, 'X'],SinkIn.loc[i, 'Y'] - 10)
     
     for con in ConnList:
         if con.out==SinkList[i].name and con.energyType==SinkList[i].energyType:
@@ -294,7 +313,12 @@ for i in range(len(TransIn.index)):
                                  opex = TransIn.loc[i,'Opex'],
                                  totalEff = TransIn.loc[i,'TotalEff'],
                                  outMin = TransIn.loc[i, 'OutMin'],
-                                 outMax = TransIn.loc[i, 'OutMax']))
+                                 outMax = TransIn.loc[i, 'OutMax'],
+                                 pos = (TransIn.loc[i, 'X'],TransIn.loc[i, 'Y'])))
+    G.add_node(TransList[i].name, pos = TransList[i].pos, shape = '8', color = 'b')
+    posits[TransList[i].name] =  TransList[i].pos
+    labelpos[TransList[i].name] = (TransIn.loc[i, 'X'],TransIn.loc[i, 'Y'] - 10)
+    
     
     outcols.append(TransList[i].name + 'Production')
     
@@ -333,7 +357,11 @@ for i in range(len(HubIn.index)):
     HubList.append(Hub(name = HubIn.loc[i,'Name'],
                        energyType = HubIn.loc[i,'EnergyType'],
                        capex = HubIn.loc[i,'Capex'],
-                       opex = HubIn.loc[i,'Opex']))
+                       opex = HubIn.loc[i,'Opex'],
+                       pos = (HubIn.loc[i, 'X'],HubIn.loc[i, 'Y'])))
+    G.add_node(HubList[i].name, pos = HubList[i].pos, shape = 'o', color = 'white')
+    posits[HubList[i].name] =  HubList[i].pos
+    labelpos[HubList[i].name] = (HubIn.loc[i, 'X'],HubIn.loc[i, 'Y'] - 10)
     
     outcols.append(HubList[i].name + 'Usage')
     for con in ConnList:
@@ -369,3 +397,21 @@ for fac in model.stations:
 
 
 outdf.to_excel('output.xlsx', sheet_name='Sheet1')
+
+plt.figure(figsize = (15,9))
+plt.axis('off') 
+for con in ConnList:
+    if model.connections[con].value > 0.000001:
+        G.add_edge(con.inp, con.out)
+        nx.draw_networkx_edges(G, pos = posits, edgelist = [(con.inp, con.out)], width = model.connections[con].value/60)
+    else:
+        G.add_edge(con.inp, con.out)
+
+nx.draw_networkx_labels(G, pos = labelpos)
+for node in G.nodes():
+    nx.draw_networkx_nodes(G, pos = posits, nodelist = [node], node_color = G.node[node]['color'], node_shape = G.node[node]['shape'])
+
+plt.show()
+plt.figure(figsize = (9, 5))
+nx.draw(G, pos = posits, with_labels = True, node_shape = 's')
+checkModel(ConnList, EnergyList)
