@@ -11,6 +11,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+input_file = 'input_BAT2030.xlsx'
+
 class Source:
     def __init__(self,name,energyType,capex,opex,CO2,minProd,maxProd):
         self.name = name
@@ -220,12 +222,12 @@ def checkModel(ConnList, entypes):
     #What more can be added?
     return None
 
-SourceIn    = pd.read_excel('input.xlsx', 'Sources', index_col=None, na_values=['NA'])
-SinkIn      = pd.read_excel('input.xlsx', 'Sinks', index_col=None, na_values=['NA'])
-TransIn     = pd.read_excel('input.xlsx', 'Transformers', index_col=None, na_values=['NA'])
-HubIn      = pd.read_excel('input.xlsx', 'Hubs', index_col=None, na_values=['NA'])
-ConnIn      = pd.read_excel('input.xlsx', 'Connectors', index_col=None, na_values=['NA'])
-RestrIn      = pd.read_excel('input.xlsx', 'Restrictions', index_col=None, na_values=['NA'])
+SourceIn    = pd.read_excel(input_file, 'Sources', index_col=None, na_values=['NA'])
+SinkIn      = pd.read_excel(input_file, 'Sinks', index_col=None, na_values=['NA'])
+TransIn     = pd.read_excel(input_file, 'Transformers', index_col=None, na_values=['NA'])
+HubIn      = pd.read_excel(input_file, 'Hubs', index_col=None, na_values=['NA'])
+ConnIn      = pd.read_excel(input_file, 'Connectors', index_col=None, na_values=['NA'])
+RestrIn      = pd.read_excel(input_file, 'Restrictions', index_col=None, na_values=['NA'])
 
 SourceList = []
 SinkList   = []
@@ -257,8 +259,8 @@ EnergyList = FuelTypeList + DemandTypeList
 #Initialize the connectors        
 for i in range(len(ConnIn.index)):
     ConnList.append(Connection(name = ConnIn.loc[i,'Name'],
-                              inp = ConnIn.loc[i,'In'],
-                              out = ConnIn.loc[i,'Out'],
+                              inp = ConnIn.loc[i,'From'],
+                              out = ConnIn.loc[i,'To'],
                               energyType = ConnIn.loc[i,'EnergyType']))
 
 #Initialize the Sources
