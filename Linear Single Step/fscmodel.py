@@ -15,7 +15,7 @@ import networkx as nx
 input_file = 'input_BAT2030.xlsx'
 
 class Source:
-    def __init__(self,name,energyType,capex,opex,CO2,minProd,maxProd,pos):
+    def __init__(self, name, energyType, capex, opex, CO2, minProd, maxProd, pos):
         self.name = name
         self.energyType = energyType
         self.capex = capex
@@ -35,7 +35,7 @@ class Source:
 
 
 class Sink:
-    def __init__(self,name,capex,opex,energyType,demand,pos):
+    def __init__(self, name, capex, opex, energyType, demand, pos):
         self.name = name
         self.energyType = energyType
         self.capex = capex
@@ -47,12 +47,12 @@ class Sink:
     def __str__(self):
         return "Sink:" + self.name + ", " + self.energyType
     
-    def __lt__(self,other):
+    def __lt__(self, other):
         if isinstance(other, Sink):
             return self.name < other.name
     
 class Transformer:
-    def __init__(self, name, capex, opex, totalEff, outMin, outMax,pos):
+    def __init__(self, name, capex, opex, totalEff, outMin, outMax, pos):
         self.name = name
         self.capex = capex
         self.opex = opex
@@ -68,12 +68,12 @@ class Transformer:
     def __str__(self):
         return "Transformer:" + self.name
     
-    def __lt__(self,other):
+    def __lt__(self, other):
         if isinstance(other, Transformer):
             return self.name < other.name
         
 class Hub:
-    def __init__(self,name,energyType,capex,opex,pos):
+    def __init__(self, name, energyType, capex, opex, pos):
         self.name = name
         self.energyType = energyType
         self.capex = capex
@@ -85,18 +85,18 @@ class Hub:
     def __str__(self):
         return "Hub:" + self.name + ", " + self.energyType
     
-    def __lt__(self,other):
+    def __lt__(self, other):
         if isinstance(other, Hub):
             return self.name < other.name
 
 class Connection:
-    def __init__(self,name,inp,out,energyType):
+    def __init__(self, name, inp, out, energyType):
         self.name = name
         self.inp = inp
         self.out = out
         self.energyType = energyType
     
-    def __lt__(self,other):
+    def __lt__(self, other):
         if isinstance(other, Connection):
             return self.name < other.name
     def __str__(self):
@@ -117,20 +117,20 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
     M.carbon = Param(M.sources, mutable = True)
     M.cape = Param(M.stations, mutable = True)
     
-    #For the amount in facilities, for calculating Opex. For transformer, the amount coming out
+    # For the amount in facilities, for calculating Opex. For transformer, the amount coming out
     M.facilities = Var( M.stations, domain = NonNegativeReals)
-    #Whether a facility is being used. For calculating Capex
+    # Whether a facility is being used. For calculating Capex
     M.isopen = Var(M.stations, domain = Boolean)
-    #Amount going through connectors
+    # Amount going through connectors
     M.connections = Var(M.connectors, domain = NonNegativeReals)
-    #Amount coming into a transformer. Used to consider transformer production ratio
+    # Amount coming into a transformer. Used to consider transformer production ratio
     M.trintotals = Var(M.trans, domain = NonNegativeReals)
     
-    #Populates capex costs
+    # Populates capex costs
     for fac in M.stations:
         M.cape[fac]=fac.capex
     
-    #Constructs cost vector from opex and carbon constraints from sources.
+    # Constructs cost vector from opex and carbon constraints from sources.
     for fac in M.stations:
         M.c[fac] = fac.opex
         if isinstance(fac, Source):
@@ -194,7 +194,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2):
     M.hubconstraint = Constraint(M.hubs, rule = hubrule)
     M.hubsum = Constraint(M.hubs, rule = hubcount)
     
-    #Quadratic constraint that turns isopen on and off
+    # Quadratic constraint that turns isopen on and off
     def binrule(model, fac):
         return M.facilities[fac] - M.isopen[fac]*M.facilities[fac] <= 0
     
@@ -232,49 +232,49 @@ def checkModel(ConnList, entypes):
 SourceIn    = pd.read_excel(input_file, 'Sources', index_col=None, na_values=['NA'])
 SinkIn      = pd.read_excel(input_file, 'Sinks', index_col=None, na_values=['NA'])
 TransIn     = pd.read_excel(input_file, 'Transformers', index_col=None, na_values=['NA'])
-HubIn      = pd.read_excel(input_file, 'Hubs', index_col=None, na_values=['NA'])
+HubIn       = pd.read_excel(input_file, 'Hubs', index_col=None, na_values=['NA'])
 ConnIn      = pd.read_excel(input_file, 'Connectors', index_col=None, na_values=['NA'])
-RestrIn      = pd.read_excel(input_file, 'Restrictions', index_col=None, na_values=['NA'])
+RestrIn     = pd.read_excel(input_file, 'Restrictions', index_col=None, na_values=['NA'])
 
-SourceList = []
-SinkList   = []
-TransList  = []
-HubList    = []
-ConnList   = []
-FuelTypeList = []
+SourceList     = []
+SinkList       = []
+TransList      = []
+HubList        = []
+ConnList       = []
+FuelTypeList   = []
 DemandTypeList = []
 outcols = ['Total Cost']
 
 
-#Import restrictions, just CO2 for now
+# Import restrictions, just CO2 for now
 CO2Max = RestrIn.loc[0,'CO2 Max']
 
-#Energy sources available from sources
+# Energy sources available from sources
 for i in range(len(SourceIn.index)):
     if not SourceIn.loc[i,'EnergyType'] in FuelTypeList:
         FuelTypeList.append(SourceIn.loc[i,'EnergyType'])
         outcols.append(SourceIn.loc[i,'EnergyType'])
         
-#Energy types demanded at sinks     
+# Energy types demanded at sinks     
 for i in range(len(SinkIn.index)):
     if not SinkIn.loc[i, 'EnergyType'] in DemandTypeList:
         DemandTypeList.append(SinkIn.loc[i, 'EnergyType'])
 
-#All energy types 
+# All energy types 
 EnergyList = FuelTypeList + DemandTypeList
 
 G = nx.DiGraph()
 posits = {}
 labelpos = {}
 
-#Initialize the connectors        
+# Initialize the connectors        
 for i in range(len(ConnIn.index)):
     ConnList.append(Connection(name = ConnIn.loc[i,'Name'],
                               inp = ConnIn.loc[i,'From'],
                               out = ConnIn.loc[i,'To'],
                               energyType = ConnIn.loc[i,'EnergyType']))
 
-#Initialize the Sources
+# Initialize the Sources
 for i in range(len(SourceIn.index)):
     SourceList.append(Source(name = SourceIn.loc[i,'Name'],
                              energyType = SourceIn.loc[i,'EnergyType'],
@@ -292,7 +292,7 @@ for i in range(len(SourceIn.index)):
         if con.inp==SourceList[i].name and con.energyType==SourceList[i].energyType:
             SourceList[i].outcons.append(con)
 
-#Initialize the sinks
+# Initialize the sinks
 for i in range(len(SinkIn.index)):
     SinkList.append(Sink(name = SinkIn.loc[i,'Name'],
                          energyType = SinkIn.loc[i,'EnergyType'],
@@ -308,7 +308,7 @@ for i in range(len(SinkIn.index)):
         if con.out==SinkList[i].name and con.energyType==SinkList[i].energyType:
             SinkList[i].incons.append(con)
 
-#Initialize the transfomers
+# Initialize the transfomers
 for i in range(len(TransIn.index)):
     TransList.append(Transformer(name = TransIn.loc[i,'Name'],
                                  capex = TransIn.loc[i,'Capex'],
@@ -354,7 +354,7 @@ for i in range(len(TransIn.index)):
             TransList[i].outcons.append(con)
             outcols.append(TransList[i].name + '-' + con.energyType)
 
- #Initialize the Hubs   
+# Initialize the Hubs   
 for i in range(len(HubIn.index)):
     HubList.append(Hub(name = HubIn.loc[i,'Name'],
                        energyType = HubIn.loc[i,'EnergyType'],
@@ -381,7 +381,7 @@ model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2 = CO
 results = opti(model)
 
 
-#Output formatting starts here
+# Output formatting starts here
 
     
 outdf = pd.DataFrame(np.zeros((1,len(outcols))), columns = outcols)
