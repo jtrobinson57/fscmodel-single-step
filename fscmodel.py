@@ -120,7 +120,7 @@ class CO2Loc:
         self.postal = postal
         self.dist = dist / 100.0       # Hundreds of km
         self.cap = cap  # / 1000           #MW
-        self.capPJ = 0
+        #self.capPJ = 0
         self.capex = {}                 # Euros
         self.indOpex = {}              # Euros
         self.dirOpex = 0               # Euros per kg H2
@@ -132,19 +132,19 @@ class CO2Loc:
         
         # Calculate capex for PtF Meth
         
-        methCap = 665 - 349.721*(1-math.e**(-0.015056*self.cap / 1000))  # In euros/KW
+        methCap = 665 - 349.721*(1-math.e**(-0.015056*self.cap))  # In euros/KW
         methCap = methCap * 1000 * self.cap                               # Convert to euros
         self.capex['Meth'] = methCap
         
         # Calculate capex for MtG
         
-        MtGCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*x))
+        MtGCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*self.cap))
         MtGCap = MtGCap * 1000 * self.cap
         self.capex['MtG'] = MtGCap
         
         # Calculate capex for FT
         
-        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*x))
+        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*self.cap))
         FTCap = FTCap * 1000 * self.cap
         self.capex['FT'] = FTCap
         
@@ -159,7 +159,6 @@ class CO2Loc:
         self.dirOpex = self.dirOpex / 120 * 10**9          # converts to euros/PJ of fuel
     
     def findIndOpex(self, Tran):
-        
         # I only made this so verbose to make the unit conversions a bit more clear
         
         MW = self.cap
@@ -167,7 +166,7 @@ class CO2Loc:
         MJph = MJpa / 8000              # Converted to MJ/h
         KGph = MJph / (Tran.specEnerg) # Converted to KG/h
         indOpex = 2.13 * (KGph**0.242) * 4 * (8000/24) * 37.32 * 4
-        self.indOpex[Tran.name] = indOpex # returns euros
+        self.indOpex[Tran.name] = indOpex # returns euros #This dictionary is used ONLY in output, the return statement does the work.
         return indOpex
 
     def checkMinMax(self):     # Checks to make sure plant capacity is within given bounds
@@ -176,6 +175,7 @@ class CO2Loc:
             self.cap = maxCO2PlantSize     # at the point of read-in
     
     def changeCapUnit(self):
+        #NOT CURRENTLY USED
         self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to PJ/yr for a single year
     
     def __lt__(self, other):
@@ -607,7 +607,7 @@ for CO2Loc in CO2LocList:
     CO2Loc.findCapex()
     CO2Loc.findDirOpex()
     #CO2Loc.findIndOpex()
-    CO2Loc.changeCapUnit()
+    #CO2Loc.changeCapUnit()
     
     for key in CO2Loc.capex:
         CO2Loc.K[key] = CO2Loc.capex[key] * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
