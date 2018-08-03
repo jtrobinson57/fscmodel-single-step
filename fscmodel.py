@@ -124,30 +124,30 @@ class CO2Loc:
         self.capex = {}                 # Euros
         self.indOpex = {}              # Euros
         self.dirOpex = 0               # Euros per kg H2
-        self.K = {}                     # Euros
+        #self.K = {}                     # Euros
         self.costPKG = costPKG
         self.maxCO2 = maxCO2
         
-    def findCapex(self):
-        
-        # Calculate capex for PtF Meth
-        
-        methCap = 665 - 349.721*(1-math.e**(-0.015056*self.cap))  # In euros/KW
-        methCap = methCap * 1000 * self.cap                               # Convert to euros
-        self.capex['Meth'] = methCap
-        
-        # Calculate capex for MtG
-        
-        MtGCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*self.cap))
-        MtGCap = MtGCap * 1000 * self.cap
-        self.capex['MtG'] = MtGCap
-        
-        # Calculate capex for FT
-        
-        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*self.cap))
-        FTCap = FTCap * 1000 * self.cap
-        self.capex['FT'] = FTCap
-        
+#    def findCapex(self):
+#        
+#        # Calculate capex for PtF Meth
+#        
+#        methCap = 665 - 349.721*(1-math.e**(-0.015056*self.cap))  # In euros/KW
+#        methCap = methCap * 1000 * self.cap                               # Convert to euros
+#        self.capex['Meth'] = methCap
+#        
+#        # Calculate capex for MtG
+#        
+#        MtGCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*self.cap))
+#        MtGCap = MtGCap * 1000 * self.cap
+#        self.capex['MtG'] = MtGCap
+#        
+#        # Calculate capex for FT
+#        
+#        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*self.cap))
+#        FTCap = FTCap * 1000 * self.cap
+#        self.capex['FT'] = FTCap
+#        
         # Old capex calculation
         
 #        self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000))    #returns euro/KW
@@ -174,9 +174,9 @@ class CO2Loc:
         if self.cap > maxCO2PlantSize:     # Admittedly, this function only checks maxes, mins are checked below
             self.cap = maxCO2PlantSize     # at the point of read-in
     
-    def changeCapUnit(self):
-        #NOT CURRENTLY USED
-        self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to PJ/yr for a single year
+#    def changeCapUnit(self):
+#        #NOT CURRENTLY USED
+#        self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to PJ/yr for a single year
     
     def __lt__(self, other):
         if isinstance(other, Connection):
@@ -297,9 +297,6 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
     def sinkcount(model,sink):
         return M.facilities[sink] == sum(M.connections[con] for con in sink.incons)
     
-#    def sinkrule(model, sink):
-#        return sum(M.connections[con] for con in sink.incons) == sink.demand
-#    M.sinkconstraint = Constraint(M.sinks, rule = sinkrule)
         
     # The amount that reaches the sink must be greater than or equal to the demand. In interest of cost, this will almost always equal it.
     for sink in M.sinks:
@@ -378,7 +375,7 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
        #Adding the cost of capex
        for loc in M.locations:
            for hy in M.hytrans:
-               ob = ob + model.assignments[hy.hynum*locationNum + loc.ind]*loc.K[hy.process]
+               ob = ob + model.assignments[hy.hynum*locationNum + loc.ind]*kMatrix[hy.hynum,loc.ind]
                
        #Adding the cost of CO2
        for i in range(hyn):
@@ -604,13 +601,13 @@ capacMax = maxCO2PlantSize * 3600 * 8000 / 1000000000
 for CO2Loc in CO2LocList:
     
     CO2Loc.checkMinMax()
-    CO2Loc.findCapex()
+    #CO2Loc.findCapex()
     CO2Loc.findDirOpex()
     #CO2Loc.findIndOpex()
     #CO2Loc.changeCapUnit()
     
-    for key in CO2Loc.capex:
-        CO2Loc.K[key] = CO2Loc.capex[key] * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
+#    for key in CO2Loc.capex:
+#        CO2Loc.K[key] = CO2Loc.capex[key] * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
 
 checkModel(ConnList, EnergyList)
 
@@ -625,28 +622,60 @@ for Trans in H2TransList:
         specEnergMatrix[Trans.hynum,loc.ind] = loc.findIndOpex(Trans)
         
 capacMaxMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
+outcapacMaxMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
+capexMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
+kMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
 
 for Trans in H2TransList:
     for loc in CO2LocList:
+        
         capacMaxMatrix[Trans.hynum,loc.ind] = (Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9
+        
         if capacMaxMatrix[Trans.hynum,loc.ind] > capacMax:
             capacMaxMatrix[Trans.hynum,loc.ind] = capacMax
+        
+        outcapacMaxMatrix[Trans.hynum,loc.ind] = capacMaxMatrix[Trans.hynum,loc.ind] * Trans.totalEff
+        
+        if(Trans.process == 'Meth'):
+            capexMatrix[Trans.hynum,loc.ind] = 665 - 349.721*(1-math.e**(-0.015056*outcapacMaxMatrix[Trans.hynum,loc.ind]))
+            capexMatrix[Trans.hynum,loc.ind] = capexMatrix[Trans.hynum,loc.ind] * 1000 * outcapacMaxMatrix[Trans.hynum,loc.ind]
+        elif(Trans.process == 'MtG'):
+            capexMatrix[Trans.hynum,loc.ind] = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*outcapacMaxMatrix[Trans.hynum,loc.ind]))
+            capexMatrix[Trans.hynum,loc.ind] = capexMatrix[Trans.hynum,loc.ind] * 1000 * outcapacMaxMatrix[Trans.hynum,loc.ind]
+        elif(Trans.process == 'FT'):
+            capexMatrix[Trans.hynum,loc.ind] = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*outcapacMaxMatrix[Trans.hynum,loc.ind]))
+            capexMatrix[Trans.hynum,loc.ind] = capexMatrix[Trans.hynum,loc.ind] * 1000 * outcapacMaxMatrix[Trans.hynum,loc.ind]
+            
+        kMatrix[Trans.hynum,loc.ind] = capexMatrix[Trans.hynum,loc.ind] * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
+
+#def findCapex(self):
+#        
+#        # Calculate capex for PtF Meth
+#        
+#        methCap = 665 - 349.721*(1-math.e**(-0.015056*self.cap))  # In euros/KW
+#        methCap = methCap * 1000 * self.cap                               # Convert to euros
+#        self.capex['Meth'] = methCap
+#        
+#        # Calculate capex for MtG
+#        
+#        MtGCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*self.cap))
+#        MtGCap = MtGCap * 1000 * self.cap
+#        self.capex['MtG'] = MtGCap
+#        
+#        # Calculate capex for FT
+#        
+#        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*self.cap))
+#        FTCap = FTCap * 1000 * self.cap
+#        self.capex['FT'] = FTCap
+#        
+#        # Old capex calculation
+#        
+##        self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000))    #returns euro/KW
+##        self.capex = self.capex * 1000 * self.cap                        #returns euros
 
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
 results = opti(model,RestrIn)
-#
-#for loc in CO2LocList:
-#    if model.locopen[loc].value > 10**-12:
-#        print(loc.ind)
-#        print(model.hydrouse[loc].value)
-#        print(model.assignments[loc.ind].value)
-#        print(model.assignments[locationNum + loc.ind].value)
-#        print(model.locopen[loc].value)
-
-#for con in ConnList:
-#    if con.energyType == 'electricity':
-#        print(model.connections[con].value)
 
 # Output formatting starts here
     
@@ -694,7 +723,7 @@ for loc in CO2LocList:
         procName = H2TransList[int(n)].name
         locProcs.append(procName)
         locDists.append(loc.dist*100)
-        locKs.append(loc.K[H2TransList[int(n)].process])
+        locKs.append(kMatrix[int(n),loc.ind])
         locH2dirOpexes.append(loc.dirOpex)
         locCO2dirOpexes.append(loc.costPKG)
         locindOpexes.append(loc.indOpex[procName])
