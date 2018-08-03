@@ -375,14 +375,17 @@ def createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, 
        ob = summation(model.facilities,model.c, index=M.stations) + summation(model.cape, model.isopen, index=M.stations)\
        + summation(model.hydrouse, model.locopex, index = model.locations)
        
+       #Adding the cost of capex
        for loc in M.locations:
            for hy in M.hytrans:
                ob = ob + model.assignments[hy.hynum*locationNum + loc.ind]*loc.K[hy.process]
                
+       #Adding the cost of CO2
        for i in range(hyn):
            for j in range(locationNum):
                ob = ob + model.hydrouse[CO2LocList[j]]*model.assignments[i*locationNum + j]*costPKGMatrix[i,j]
-               
+       
+       #Adding the cost of indirect opex
        for i in range(hyn):
            for j in range(locationNum):
                ob = ob + model.assignments[i*locationNum + j]*specEnergMatrix[i,j]
@@ -690,8 +693,8 @@ for loc in CO2LocList:
             
         procName = H2TransList[int(n)].name
         locProcs.append(procName)
-        locDists.append(loc.dist)
-        locKs.append(loc.K)
+        locDists.append(loc.dist*100)
+        locKs.append(loc.K[H2TransList[int(n)].process])
         locH2dirOpexes.append(loc.dirOpex)
         locCO2dirOpexes.append(loc.costPKG)
         locindOpexes.append(loc.indOpex[procName])
