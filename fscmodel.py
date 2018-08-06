@@ -114,7 +114,7 @@ class Connection:
 
 
 class CO2Loc:
-    def __init__(self, name, ind, postal, dist, cap, costPKG, maxCO2):
+    def __init__(self, name, ind, postal, dist, cap, costPKG, maxCO2, mtCO2):
         self.name = name
         self.ind = ind
         self.postal = postal
@@ -127,45 +127,24 @@ class CO2Loc:
         #self.K = {}                     # Euros
         self.costPKG = costPKG
         self.maxCO2 = maxCO2
+        self.mtCO2 = mtCO2
         
 #    def findCapex(self):
-#        
-#        # Calculate capex for PtF Meth
-#        
-#        methCap = 665 - 349.721*(1-math.e**(-0.015056*self.cap))  # In euros/KW
-#        methCap = methCap * 1000 * self.cap                               # Convert to euros
-#        self.capex['Meth'] = methCap
-#        
-#        # Calculate capex for MtG
-#        
-#        MtGCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*self.cap))
-#        MtGCap = MtGCap * 1000 * self.cap
-#        self.capex['MtG'] = MtGCap
-#        
-#        # Calculate capex for FT
-#        
-#        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*self.cap))
-#        FTCap = FTCap * 1000 * self.cap
-#        self.capex['FT'] = FTCap
-#        
-        # Old capex calculation
-        
-#        self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000))    #returns euro/KW
-#        self.capex = self.capex * 1000 * self.cap                        #returns euros
         
     def findDirOpex(self):
         
         self.dirOpex = 5.190866 + (3.999796 - 5.190866)/(1 + (self.dist/2.020612)**1.534203) # returns euros/kg of H2
         self.dirOpex = self.dirOpex / 120 * 10**9          # converts to euros/PJ of fuel
     
-    def findIndOpex(self, Tran):
+    def findIndOpex(self, Tran, loc):
         # I only made this so verbose to make the unit conversions a bit more clear
         
-        MW = self.cap
-        MJpa = MW * 3600 * 8000         # Converted to MJ/a
-        MJph = MJpa / 8000              # Converted to MJ/h
-        KGph = MJph / (Tran.specEnerg) # Converted to KG/h
-        indOpex = 2.13 * (KGph**0.242) * 4 * (8000/24) * 37.32 * 4
+        CO2_Kgpa = loc.mtCO2 * 10**9 #Converting from CO2 in MT/a to kg/a
+        CO2_Kgph = CO2_Kgpa / 8000
+        H_MJph = CO2_Kgph * (Tran.CO2Ratio ** -1)
+        H_Kgph = H_MJph * (Tran.specEnerg ** -1)
+        
+        indOpex = 2.13 * (H_Kgph**0.242) * 4 * (8000/24) * 37.32 * 4
         self.indOpex[Tran.name] = indOpex # returns euros #This dictionary is used ONLY in output, the return statement does the work.
         return indOpex
 
@@ -173,11 +152,7 @@ class CO2Loc:
                                # according to the input restrictions sheet
         if self.cap > maxCO2PlantSize:     # Admittedly, this function only checks maxes, mins are checked below
             self.cap = maxCO2PlantSize     # at the point of read-in
-    
-#    def changeCapUnit(self):
-#        #NOT CURRENTLY USED
-#        self.capPJ = self.cap * 3600 * 8000 / 1000000000  #Switch from MW to PJ/yr for a single year
-    
+      
     def __lt__(self, other):
         if isinstance(other, Connection):
             return self.name < other.name
@@ -578,58 +553,40 @@ for i in range(len(HubIn.index)):
         elif con.inp==HubList[i].name and con.energyType==HubList[i].energyType:
             HubList[i].outcons.append(con)
             
-    
-# Initialize the CO2 Locations
+
 j = 0
 
 for i in range(len(CO2LocIn.index)):                          #Checks to make sure plant capacity is within given bounds
-    if(CO2LocIn.loc[i,'Plant size [MW]'] >= minCO2PlantSize): #according to the input restrictions sheet                                                             
-        CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],
-                                 ind = j,                               #This if statement only checks mins, maxes
-                                 postal = CO2LocIn.loc[i, 'PostalCode'],  #Are checked below, during the calculation
-                                 dist = CO2LocIn.loc[i, 'Spalte2'],       #of CO2 location properties by checkMinMax()
-                                 cap = CO2LocIn.loc[i, 'Plant size [MW]'],
-                                 costPKG = CO2LocIn.loc[i, 'CO2 Cost pkg'],
-                                 maxCO2 = CO2LocIn.loc[i, 'TotalQuantity']))
-        j = j + 1  
+    CO2LocList.append(CO2Loc(name = CO2LocIn.loc[i, 'FacilityName'],
+                             ind = j,                               #This if statement only checks mins, maxes
+                             postal = CO2LocIn.loc[i, 'PostalCode'],  #Are checked below, during the calculation
+                             dist = CO2LocIn.loc[i, 'Spalte2'],       #of CO2 location properties by checkMinMax()
+                             cap = CO2LocIn.loc[i, 'Plant size [MW]'],
+                             costPKG = CO2LocIn.loc[i, 'CO2 Cost pkg'],
+                             maxCO2 = CO2LocIn.loc[i, 'TotalQuantity'],
+                             mtCO2 = CO2LocIn.loc[i, '[Mt CO2/a]']))
+    j = j + 1  
    
 locationNum = j
 
 # Calculate CO2 location properties
 
 capacMax = maxCO2PlantSize * 3600 * 8000 / 1000000000
-for CO2Loc in CO2LocList:
-    
-    CO2Loc.checkMinMax()
-    #CO2Loc.findCapex()
-    CO2Loc.findDirOpex()
-    #CO2Loc.findIndOpex()
-    #CO2Loc.changeCapUnit()
-    
-#    for key in CO2Loc.capex:
-#        CO2Loc.K[key] = CO2Loc.capex[key] * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
-
-checkModel(ConnList, EnergyList)
-
-costPKGMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
-for Trans in H2TransList:
-    for loc in CO2LocList:
-        costPKGMatrix[Trans.hynum,loc.ind] = Trans.CO2Ratio * loc.costPKG
-        
-specEnergMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
-for Trans in H2TransList:
-    for loc in CO2LocList:
-        specEnergMatrix[Trans.hynum,loc.ind] = loc.findIndOpex(Trans)
+capacMin = minCO2PlantSize * 3600 * 8000 / 1000000000
         
 capacMaxMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
 outcapacMaxMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
 capexMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
 kMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
+deleteTheseCO2Locs = []
 
 for Trans in H2TransList:
     for loc in CO2LocList:
         
-        capacMaxMatrix[Trans.hynum,loc.ind] = (Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9
+        if ((Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9) > capacMin:
+            capacMaxMatrix[Trans.hynum,loc.ind] = (Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9
+        else:
+            capacMaxMatrix[Trans.hynum,loc.ind] = 0
         
         if capacMaxMatrix[Trans.hynum,loc.ind] > capacMax:
             capacMaxMatrix[Trans.hynum,loc.ind] = capacMax
@@ -648,30 +605,20 @@ for Trans in H2TransList:
             
         kMatrix[Trans.hynum,loc.ind] = capexMatrix[Trans.hynum,loc.ind] * ((wacc*(wacc + 1)**lifetime)/((wacc+1)**lifetime -1))
 
-#def findCapex(self):
-#        
-#        # Calculate capex for PtF Meth
-#        
-#        methCap = 665 - 349.721*(1-math.e**(-0.015056*self.cap))  # In euros/KW
-#        methCap = methCap * 1000 * self.cap                               # Convert to euros
-#        self.capex['Meth'] = methCap
-#        
-#        # Calculate capex for MtG
-#        
-#        MtGCap = 857.9284 - (5.453904/0.01713641)*(1 - math.e**(-0.01713641*self.cap))
-#        MtGCap = MtGCap * 1000 * self.cap
-#        self.capex['MtG'] = MtGCap
-#        
-#        # Calculate capex for FT
-#        
-#        FTCap = 941.3248 - (5.749309/0.01375331)*(1 - math.e**(-0.01375331*self.cap))
-#        FTCap = FTCap * 1000 * self.cap
-#        self.capex['FT'] = FTCap
-#        
-#        # Old capex calculation
-#        
-##        self.capex = 665 - (349.721)*(1-math.e**(-0.015056*self.cap / 1000))    #returns euro/KW
-##        self.capex = self.capex * 1000 * self.cap                        #returns euros
+for CO2Loc in CO2LocList:
+    CO2Loc.findDirOpex()
+    
+checkModel(ConnList, EnergyList)
+
+costPKGMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
+for Trans in H2TransList:
+    for loc in CO2LocList:
+        costPKGMatrix[Trans.hynum,loc.ind] = Trans.CO2Ratio * loc.costPKG
+        
+specEnergMatrix = np.zeros((len(H2TransList),len(CO2LocList)))
+for Trans in H2TransList:
+    for loc in CO2LocList:
+        specEnergMatrix[Trans.hynum,loc.ind] = loc.findIndOpex(Trans, loc)
 
 model = createModel(SourceList, SinkList, TransList, ConnList, HubList, CO2LocList, CO2 = CO2Max)
 
