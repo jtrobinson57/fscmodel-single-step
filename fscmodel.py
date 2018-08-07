@@ -583,15 +583,15 @@ deleteTheseCO2Locs = []
 for Trans in H2TransList:
     for loc in CO2LocList:
         
-        outcapacMaxMatrix[Trans.hynum,loc.ind] = capacMaxMatrix[Trans.hynum,loc.ind] * Trans.totalEff
-        
-         if ((Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9) > capacMin:
-            outcapacMaxMatrix[Trans.hynum,loc.ind] = (Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9
+        if ((Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9) > capacMin:
+            capacMaxMatrix[Trans.hynum,loc.ind] = (Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9
         else:
-            outcapacMaxMatrix[Trans.hynum,loc.ind] = 0
+            capacMaxMatrix[Trans.hynum,loc.ind] = 0
         
-        if outcapacMaxMatrix[Trans.hynum,loc.ind] > capacMax:
-            outcapacMaxMatrix[Trans.hynum,loc.ind] = capacMax
+        if capacMaxMatrix[Trans.hynum,loc.ind] > capacMax:
+            capacMaxMatrix[Trans.hynum,loc.ind] = capacMax
+        
+        outcapacMaxMatrix[Trans.hynum,loc.ind] = capacMaxMatrix[Trans.hynum,loc.ind] * Trans.totalEff
             
         if(Trans.process == 'Meth'):
             capexMatrix[Trans.hynum,loc.ind] = 665 - 349.721*(1-math.e**(-0.015056*outcapacMaxMatrix[Trans.hynum,loc.ind]))
@@ -648,6 +648,7 @@ for fac in model.stations:
 locNames = []
 locPosts = []
 locAmts = []
+locProds = []
 locProcs = []
 locDists = []
 locKs = []
@@ -662,11 +663,15 @@ for loc in CO2LocList:
         locNames.append(loc.name)
         locPosts.append(loc.postal)
         locAmts.append(model.hydrouse[loc].value)
+        
         for j in range(hyn):
             if model.assignments[j*locationNum + loc.ind] == 1:
                 n = j
                 break
             
+        eElec = (model.hydrouse[loc].value / H2TransList[int(n)].inputs['hydrogen']) * H2TransList[int(n)].inputs['electricity']
+        eFuel = H2TransList[int(n)].totalEff * (model.hydrouse[loc].value + eElec)
+        locProds.append(eFuel)
         procName = H2TransList[int(n)].name
         locProcs.append(procName)
         locDists.append(loc.dist*100)
@@ -679,9 +684,10 @@ for loc in CO2LocList:
 
 locdf = pd.DataFrame({'Name': locNames,
                       'Postal Code': locPosts,
-                      'Amount Used': locAmts,
+                      'Amount of Hydrogen Used in PJ': locAmts,
+                      'Amount of Fuel Produced in PJ': locProds,
                       'Process Used': locProcs,
-                      'Distance' : locDists,
+                      'Distance in km' : locDists,
                       'K Value' : locKs,
                       'H2 Opex (per unit)' : locH2dirOpexes,
                       'H2 Total Cost' : locH2Costs,
