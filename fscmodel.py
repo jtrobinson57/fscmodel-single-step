@@ -583,16 +583,16 @@ deleteTheseCO2Locs = []
 for Trans in H2TransList:
     for loc in CO2LocList:
         
-        if ((Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9) > capacMin:
-            capacMaxMatrix[Trans.hynum,loc.ind] = (Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9
-        else:
-            capacMaxMatrix[Trans.hynum,loc.ind] = 0
-        
-        if capacMaxMatrix[Trans.hynum,loc.ind] > capacMax:
-            capacMaxMatrix[Trans.hynum,loc.ind] = capacMax
-        
         outcapacMaxMatrix[Trans.hynum,loc.ind] = capacMaxMatrix[Trans.hynum,loc.ind] * Trans.totalEff
         
+         if ((Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9) > capacMin:
+            outcapacMaxMatrix[Trans.hynum,loc.ind] = (Trans.CO2Ratio)**(-1) * loc.maxCO2 / 10**9
+        else:
+            outcapacMaxMatrix[Trans.hynum,loc.ind] = 0
+        
+        if outcapacMaxMatrix[Trans.hynum,loc.ind] > capacMax:
+            outcapacMaxMatrix[Trans.hynum,loc.ind] = capacMax
+            
         if(Trans.process == 'Meth'):
             capexMatrix[Trans.hynum,loc.ind] = 665 - 349.721*(1-math.e**(-0.015056*outcapacMaxMatrix[Trans.hynum,loc.ind]))
             capexMatrix[Trans.hynum,loc.ind] = capexMatrix[Trans.hynum,loc.ind] * 1000 * outcapacMaxMatrix[Trans.hynum,loc.ind]
